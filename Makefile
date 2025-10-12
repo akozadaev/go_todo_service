@@ -1,16 +1,50 @@
-.PHONY: run dev test-curl clean help
+.PHONY: run dev test-curl clean help build lint test
 
 SERVER_URL = http://localhost:8080
 
-# Запуск в production-режиме (без перезагрузки)
+# Сборка бинарника
+build:
+	@echo "Building application..."
+	go build -o bin/api cmd/api/main.go
+
+# Запуск в обычном режиме
 run:
-	go run main.go
+	@echo "Running application..."
+	go run cmd/api/main.go
 
 # Запуск в режиме разработки с Air (hot reload)
 dev:
+	@echo "Running in development mode with Air..."
 	air
 
-# Выполнение последовательности cURL-запросов
+# Установка зависимостей
+deps:
+	@echo "Downloading dependencies..."
+	go mod download
+	go mod tidy
+
+# Запуск линтера
+lint:
+	@echo "Running linter..."
+	golangci-lint run ./...
+
+# Форматирование кода
+fmt:
+	@echo "Formatting code..."
+	go fmt ./...
+
+# Проверка кода
+vet:
+	@echo "Running go vet..."
+	go vet ./...
+
+# Запуск тестов
+test:
+	@echo "Running tests..."
+	go test -v -race -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+
+# Тестирование API через cURL
 test-curl:
 	@echo "1. Получить все задачи (ожидается пустой список)..."
 	curl -s -X GET $(SERVER_URL)/todos
@@ -61,14 +95,33 @@ test-curl:
 
 # Очистка временных файлов
 clean:
+	@echo "Cleaning up..."
 	rm -rf tmp/
 	rm -f build-errors.log
+	rm -f bin/
+	rm -f coverage.out coverage.html
+
+# Создание .env из примера
+init:
+	@if [ ! -f .env ]; then \
+		cp .env.example .env; \
+		echo ".env file created. Please update DB_PASSWORD!"; \
+	else \
+		echo ".env file already exists"; \
+	fi
 
 # Помощь
 help:
-	@echo "Цели:"
-	@echo "  make run        — запустить сервер (обычный режим)"
-	@echo "  make dev        — запустить сервер с Air (hot reload, для разработки)"
-	@echo "  make test-curl  — выполнить тестовые cURL-запросы к http://localhost:8080"
-	@echo "  make clean      — удалить временные файлы Air"
-	@echo "  make help       — показать это сообщение"
+	@echo "Доступные команды:"
+	@echo "  make build          - Собрать бинарный файл приложения"
+	@echo "  make run            - Запустить приложение"
+	@echo "  make dev            - Запустить с Air (hot reload)"
+	@echo "  make deps           - Скачать и обновить зависимости"
+	@echo "  make lint           - Запустить линтер (golangci-lint)"
+	@echo "  make fmt            - Форматировать код"
+	@echo "  make vet            - Запустить go vet"
+	@echo "  make test           - Запустить тесты с покрытием"
+	@echo "  make test-curl      - Протестировать API через cURL"
+	@echo "  make clean          - Очистить временные файлы"
+	@echo "  make init           - Создать .env из .env.example"
+	@echo "  make help           - Показать это сообщение"
