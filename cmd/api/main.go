@@ -2,17 +2,17 @@ package main
 
 import (
 	"context"
+	"github.com/akozadaev/go_todo_service/config"
+	"github.com/akozadaev/go_todo_service/internal/database"
+	"github.com/akozadaev/go_todo_service/internal/handler"
+	"github.com/akozadaev/go_todo_service/internal/middleware"
+	"github.com/akozadaev/go_todo_service/internal/repository"
+	"github.com/akozadaev/go_todo_service/internal/service"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"todo-service/config"
-	"todo-service/internal/database"
-	"todo-service/internal/handler"
-	"todo-service/internal/middleware"
-	"todo-service/internal/repository"
-	"todo-service/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

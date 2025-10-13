@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"todo-service/internal/model"
-	"todo-service/internal/repository"
+	"github.com/akozadaev/go_todo_service/internal/model"
+	"github.com/akozadaev/go_todo_service/internal/repository"
 )
 
 // TodoService определяет интерфейс бизнес-логики для TODO
@@ -30,11 +30,11 @@ func NewTodoService(repo repository.TodoRepository) TodoService {
 
 func (s *todoService) Create(ctx context.Context, req *model.TodoCreateRequest) (*model.Todo, error) {
 	todo := req.ToTodo()
-	
+
 	if err := s.repo.Create(ctx, todo); err != nil {
 		return nil, fmt.Errorf("failed to create todo: %w", err)
 	}
-	
+
 	return todo, nil
 }
 
@@ -60,16 +60,16 @@ func (s *todoService) Update(ctx context.Context, id uint, req *model.TodoUpdate
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Обновляем поля
 	existing.Title = req.Title
 	existing.Description = req.Description
 	existing.Done = req.Done
-	
+
 	if err := s.repo.Update(ctx, existing); err != nil {
 		return nil, fmt.Errorf("failed to update todo: %w", err)
 	}
-	
+
 	return existing, nil
 }
 
@@ -79,4 +79,3 @@ func (s *todoService) Delete(ctx context.Context, id uint) error {
 	}
 	return nil
 }
-

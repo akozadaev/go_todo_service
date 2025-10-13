@@ -1,4 +1,4 @@
-module todo-service
+module github.com/akozadaev/go_todo_service
 
 go 1.25
 

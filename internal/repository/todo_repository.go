@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"todo-service/internal/model"
+	"github.com/akozadaev/go_todo_service/internal/model"
 
 	"gorm.io/gorm"
 )
@@ -69,29 +69,28 @@ func (r *todoRepository) Update(ctx context.Context, todo *model.Todo) error {
 		"description": todo.Description,
 		"done":        todo.Done,
 	})
-	
+
 	if result.Error != nil {
 		return ErrDatabaseError
 	}
-	
+
 	if result.RowsAffected == 0 {
 		return ErrNotFound
 	}
-	
+
 	return nil
 }
 
 func (r *todoRepository) Delete(ctx context.Context, id uint) error {
 	result := r.db.WithContext(ctx).Delete(&model.Todo{}, id)
-	
+
 	if result.Error != nil {
 		return ErrDatabaseError
 	}
-	
+
 	if result.RowsAffected == 0 {
 		return ErrNotFound
 	}
-	
+
 	return nil
 }
-

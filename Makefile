@@ -1,6 +1,6 @@
 .PHONY: run dev test-curl clean help build lint test
 
-SERVER_URL = http://localhost:8080
+SERVER_URL = http://localhost:8080/api/v1
 
 # Сборка бинарника
 build:
@@ -15,7 +15,8 @@ run:
 # Запуск в режиме разработки с Air (hot reload)
 dev:
 	@echo "Running in development mode with Air..."
-	air
+	@mkdir -p tmp
+	@air -c air.toml
 
 # Установка зависимостей
 deps:
@@ -96,9 +97,9 @@ test-curl:
 # Очистка временных файлов
 clean:
 	@echo "Cleaning up..."
-	rm -rf tmp/
+	rm -f tmp/main tmp/build-errors.log
 	rm -f build-errors.log
-	rm -f bin/
+	rm -rf bin/
 	rm -f coverage.out coverage.html
 
 # Создание .env из примера

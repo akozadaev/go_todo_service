@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"todo-service/config"
-	"todo-service/internal/model"
+	"github.com/akozadaev/go_todo_service/config"
+	"github.com/akozadaev/go_todo_service/internal/model"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

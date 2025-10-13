@@ -29,7 +29,8 @@ go.work
 .env.local
 
 # Air
-tmp/
+tmp/*
+!tmp/.gitkeep
 build-errors.log
 
 # OS

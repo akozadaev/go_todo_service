@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"todo-service/internal/model"
-	"todo-service/internal/repository"
-	"todo-service/internal/service"
+	"github.com/akozadaev/go_todo_service/internal/model"
+	"github.com/akozadaev/go_todo_service/internal/repository"
+	"github.com/akozadaev/go_todo_service/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
