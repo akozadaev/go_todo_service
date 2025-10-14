@@ -4,6 +4,8 @@ RESTful микросервис для управления списком зад
 
 ## Архитектура
 
+Структура папок в соответствии с [рекомендациями](https://github.com/golang-standards/project-layout/blob/master/README_ru.md)
+
 Проект следует **Clean Architecture** и **SOLID** принципам:
 
 ### Слои приложения
