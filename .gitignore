@@ -39,3 +39,13 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
+!logs/.gitkeep
+
+# Profiles
+profiles/
+!profiles/.gitkeep
+
+# Generated API docs
+api/
+!api/.gitkeep

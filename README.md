@@ -6,7 +6,7 @@ RESTful микросервис для управления списком зад
 
 Структура папок в соответствии с [рекомендациями](https://github.com/golang-standards/project-layout/blob/master/README_ru.md)
 
-Проект следует **Clean Architecture** и **SOLID** принципам:
+gitПроект следует **Clean Architecture** и **SOLID** принципам:
 
 ### Слои приложения
 
@@ -238,3 +238,9 @@ make vet
 # Линтер
 make lint
 ```
+
+Генерация OpenAPI
+```bash
+swag init -g ./cmd/api/main.go -o ./api 
+```
+

@@ -2,14 +2,14 @@ package database
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/akozadaev/go_todo_service/config"
+	"github.com/akozadaev/go_todo_service/internal/logger"
 	"github.com/akozadaev/go_todo_service/internal/model"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	gormLogger "gorm.io/gorm/logger"
 )
 
 // NewPostgresDB создает подключение к PostgreSQL
@@ -17,7 +17,7 @@ func NewPostgresDB(cfg *config.DatabaseConfig) (*gorm.DB, error) {
 	dsn := cfg.GetDSN()
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: gormLogger.Default.LogMode(gormLogger.Info),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
@@ -33,14 +33,18 @@ func NewPostgresDB(cfg *config.DatabaseConfig) (*gorm.DB, error) {
 	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
 	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
 
-	log.Println("Successfully connected to database")
+	if logger.Logger != nil {
+		logger.Logger.Info("Successfully connected to database")
+	}
 
 	return db, nil
 }
 
 // AutoMigrate выполняет автоматическую миграцию моделей
 func AutoMigrate(db *gorm.DB) error {
-	log.Println("Running auto migration...")
+	if logger.Logger != nil {
+		logger.Logger.Info("Running auto migration...")
+	}
 
 	if err := db.AutoMigrate(
 		&model.Todo{},
@@ -48,7 +52,9 @@ func AutoMigrate(db *gorm.DB) error {
 		return fmt.Errorf("failed to auto migrate: %w", err)
 	}
 
-	log.Println("Auto migration completed successfully")
+	if logger.Logger != nil {
+		logger.Logger.Info("Auto migration completed successfully")
+	}
 	return nil
 }
 

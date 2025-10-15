@@ -12,6 +12,7 @@ import (
 type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
+	Logger   LoggerConfig
 }
 
 type ServerConfig struct {
@@ -31,6 +32,17 @@ type DatabaseConfig struct {
 	SSLMode      string
 	MaxIdleConns int
 	MaxOpenConns int
+}
+
+type LoggerConfig struct {
+	Level       string
+	Filename    string
+	MaxSize     int
+	MaxAge      int
+	MaxBackups  int
+	Compress    bool
+	LocalTime   bool
+	RotateDaily bool
 }
 
 // Load загружает конфигурацию из переменных окружения
@@ -55,6 +67,16 @@ func Load() (*Config, error) {
 			SSLMode:      getEnv("DB_SSLMODE", "disable"),
 			MaxIdleConns: getIntEnv("DB_MAX_IDLE_CONNS", 10),
 			MaxOpenConns: getIntEnv("DB_MAX_OPEN_CONNS", 100),
+		},
+		Logger: LoggerConfig{
+			Level:       getEnv("LOG_LEVEL", "info"),
+			Filename:    getEnv("LOG_FILENAME", "logs/app.log"),
+			MaxSize:     getIntEnv("LOG_MAX_SIZE", 100),
+			MaxAge:      getIntEnv("LOG_MAX_AGE", 30),
+			MaxBackups:  getIntEnv("LOG_MAX_BACKUPS", 5),
+			Compress:    getBoolEnv("LOG_COMPRESS", true),
+			LocalTime:   getBoolEnv("LOG_LOCAL_TIME", true),
+			RotateDaily: getBoolEnv("LOG_ROTATE_DAILY", false),
 		},
 	}
 
@@ -105,6 +127,15 @@ func getIntEnv(key string, defaultValue int) int {
 	if value := os.Getenv(key); value != "" {
 		if intVal, err := strconv.Atoi(value); err == nil {
 			return intVal
+		}
+	}
+	return defaultValue
+}
+
+func getBoolEnv(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if boolVal, err := strconv.ParseBool(value); err == nil {
+			return boolVal
 		}
 	}
 	return defaultValue

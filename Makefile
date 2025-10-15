@@ -1,4 +1,4 @@
-.PHONY: run dev test-curl clean help build lint test
+.PHONY: run dev test-curl clean help build lint test profile profile-web profile-load swag swag-serve swag-local
 
 SERVER_URL = http://localhost:8080/api/v1
 
@@ -94,6 +94,22 @@ test-curl:
 	curl -s -X GET $(SERVER_URL)/todos
 	@echo
 
+# Профилирование
+profile:
+	@echo "Running profiling test..."
+	@./scripts/test_profiling.sh
+
+profile-web:
+	@echo "Opening pprof web interface..."
+	@echo "Available endpoints:"
+	@echo "  http://localhost:8080/debug/pprof/"
+	@echo "  go tool pprof -http=:8081 http://localhost:8080/debug/pprof/heap"
+	@echo "  go tool pprof -http=:8081 http://localhost:8080/debug/pprof/profile"
+
+profile-load:
+	@echo "Running full profiling test with load..."
+	@./scripts/run_profiling_test.sh
+
 # Очистка временных файлов
 clean:
 	@echo "Cleaning up..."
@@ -101,6 +117,9 @@ clean:
 	rm -f build-errors.log
 	rm -rf bin/
 	rm -f coverage.out coverage.html
+	rm -rf profiles/
+	rm -rf logs/*.log
+	rm -rf api/
 
 # Создание .env из примера
 init:
@@ -110,6 +129,44 @@ init:
 	else \
 		echo ".env file already exists"; \
 	fi
+# Генерация OpenAPI документации
+swag:
+	@echo "Generating OpenAPI documentation..."
+	@which swag > /dev/null || (echo "Installing swag..." && go install github.com/swaggo/swag/cmd/swag@v1.8.12)
+	@swag init -g ./cmd/api/main.go -o ./api --parseDependency --parseInternal
+	@echo "OpenAPI documentation generated in ./api/"
+	@echo "Files created:"
+	@ls -la ./api/
+
+# Просмотр OpenAPI документации
+swag-serve:
+	@echo "OpenAPI Documentation Viewing Options:"
+	@echo ""
+	@echo "1. Swagger Editor (Recommended):"
+	@echo "   - Open: https://editor.swagger.io/"
+	@echo "   - Copy content from: ./api/swagger.json"
+	@echo "   - Paste into Swagger Editor"
+	@echo ""
+	@echo "2. Swagger UI Online:"
+	@echo "   - Open: http://petstore.swagger.io/"
+	@echo "   - Click 'Try it out' -> 'Execute'"
+	@echo "   - Or use: http://petstore.swagger.io/?url=http://localhost:8081/swagger.json"
+	@echo "   - (requires local server: make swag-local)"
+	@echo ""
+	@echo "3. Local file server:"
+	@echo "   make swag-local"
+	@echo ""
+	@echo "4. Direct file access:"
+	@echo "   - JSON: ./api/swagger.json"
+	@echo "   - YAML: ./api/swagger.yaml"
+
+# Локальный файловый сервер для просмотра OpenAPI
+swag-local:
+	@echo "Starting local file server for OpenAPI documentation..."
+	@echo "Open http://localhost:8081/swagger.json in your browser"
+	@echo "Or use Swagger UI: http://petstore.swagger.io/?url=http://localhost:8081/swagger.json"
+	@echo "Press Ctrl+C to stop"
+	@python3 -m http.server 8081 --directory ./api
 
 # Помощь
 help:
@@ -123,6 +180,12 @@ help:
 	@echo "  make vet            - Запустить go vet"
 	@echo "  make test           - Запустить тесты с покрытием"
 	@echo "  make test-curl      - Протестировать API через cURL"
+	@echo "  make profile        - Запустить тест профилирования"
+	@echo "  make profile-web    - Показать информацию о веб-интерфейсе pprof"
+	@echo "  make profile-load   - Запустить полный тест профилирования с нагрузкой"
+	@echo "  make swag           - Сгенерировать OpenAPI документацию"
+	@echo "  make swag-serve     - Показать способы просмотра OpenAPI документации"
+	@echo "  make swag-local     - Запустить локальный файловый сервер для просмотра OpenAPI"
 	@echo "  make clean          - Очистить временные файлы"
 	@echo "  make init           - Создать .env из .env.example"
 	@echo "  make help           - Показать это сообщение"

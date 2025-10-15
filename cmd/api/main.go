@@ -2,19 +2,23 @@ package main
 
 import (
 	"context"
-	"github.com/akozadaev/go_todo_service/config"
-	"github.com/akozadaev/go_todo_service/internal/database"
-	"github.com/akozadaev/go_todo_service/internal/handler"
-	"github.com/akozadaev/go_todo_service/internal/middleware"
-	"github.com/akozadaev/go_todo_service/internal/repository"
-	"github.com/akozadaev/go_todo_service/internal/service"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/akozadaev/go_todo_service/config"
+	"github.com/akozadaev/go_todo_service/internal/database"
+	"github.com/akozadaev/go_todo_service/internal/handler"
+	"github.com/akozadaev/go_todo_service/internal/logger"
+	"github.com/akozadaev/go_todo_service/internal/middleware"
+	"github.com/akozadaev/go_todo_service/internal/repository"
+	"github.com/akozadaev/go_todo_service/internal/service"
+
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -24,14 +28,52 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	loggerCfg := &logger.Config{
+		Level:       cfg.Logger.Level,
+		Filename:    cfg.Logger.Filename,
+		MaxSize:     cfg.Logger.MaxSize,
+		MaxAge:      cfg.Logger.MaxAge,
+		MaxBackups:  cfg.Logger.MaxBackups,
+		Compress:    cfg.Logger.Compress,
+		LocalTime:   cfg.Logger.LocalTime,
+		RotateDaily: cfg.Logger.RotateDaily,
+	}
+	if err := logger.Init(loggerCfg); err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+	defer logger.Sync()
+
+	// Инициализируем специализированные логгеры
+	if err := logger.InitSpecializedLoggers("logs"); err != nil {
+		if logger.Logger != nil {
+			logger.Logger.Fatal("Failed to initialize specialized loggers", zap.Error(err))
+		}
+		log.Fatalf("Failed to initialize specialized loggers: %v", err)
+	}
+	defer logger.SyncSpecialized()
+
+	// Логируем запуск приложения
+	if logger.Logger != nil {
+		logger.Logger.Info("Starting application",
+			zap.String("server", cfg.Server.GetServerAddress()),
+			zap.String("log_level", cfg.Logger.Level),
+			zap.String("pprof_url", "http://"+cfg.Server.GetServerAddress()+"/debug/pprof/"))
+	}
+
 	// Подключаемся к базе данных
 	db, err := database.NewPostgresDB(&cfg.Database)
 	if err != nil {
+		if logger.Logger != nil {
+			logger.Logger.Fatal("Failed to connect to database", zap.Error(err))
+		}
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
 	// Выполняем миграции
 	if err = database.AutoMigrate(db); err != nil {
+		if logger.Logger != nil {
+			logger.Logger.Fatal("Failed to migrate database", zap.Error(err))
+		}
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
@@ -54,8 +96,25 @@ func main() {
 	healthHandler.RegisterRoutes(router)
 
 	// Регистрируем API endpoints
-	api := router.Group("/api/v1")
-	todoHandler.RegisterRoutes(api)
+	apiGroup := router.Group("/api/v1")
+	todoHandler.RegisterRoutes(apiGroup)
+
+	pprofGroup := router.Group("/debug/pprof")
+	pprofGroup.Use(middleware.PProfAuth()) // Защищаем pprof endpoints
+	{
+		pprofGroup.GET("/", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/cmdline", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/profile", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.POST("/symbol", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/symbol", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/trace", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/allocs", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/block", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/goroutine", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/heap", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/mutex", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+		pprofGroup.GET("/threadcreate", gin.WrapF(http.DefaultServeMux.ServeHTTP))
+	}
 
 	// Создаем HTTP сервер
 	server := &http.Server{
@@ -67,8 +126,15 @@ func main() {
 
 	// Запускаем сервер в отдельной горутине
 	go func() {
-		log.Printf("Starting server on %s", server.Addr)
+		if logger.Logger != nil {
+			logger.Logger.Info("Starting server", zap.String("address", server.Addr))
+		} else {
+			log.Printf("Starting server on %s", server.Addr)
+		}
 		if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			if logger.Logger != nil {
+				logger.Logger.Fatal("Failed to start server", zap.Error(err))
+			}
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
@@ -78,7 +144,11 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	if logger.Logger != nil {
+		logger.Logger.Info("Shutting down server...")
+	} else {
+		log.Println("Shutting down server...")
+	}
 
 	// Создаем контекст с таймаутом для graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
@@ -86,14 +156,30 @@ func main() {
 
 	// Останавливаем HTTP сервер (ждем завершения активных запросов)
 	if err = server.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		if logger.Logger != nil {
+			logger.Logger.Error("Server forced to shutdown", zap.Error(err))
+		} else {
+			log.Printf("Server forced to shutdown: %v", err)
+		}
 	}
 
 	// Закрываем соединение с базой данных после остановки сервера
-	log.Println("Closing database connection...")
+	if logger.Logger != nil {
+		logger.Logger.Info("Closing database connection...")
+	} else {
+		log.Println("Closing database connection...")
+	}
 	if err := database.Close(db); err != nil {
-		log.Printf("Error closing database: %v", err)
+		if logger.Logger != nil {
+			logger.Logger.Error("Error closing database", zap.Error(err))
+		} else {
+			log.Printf("Error closing database: %v", err)
+		}
 	}
 
-	log.Println("Server exited gracefully")
+	if logger.Logger != nil {
+		logger.Logger.Info("Server exited gracefully")
+	} else {
+		log.Println("Server exited gracefully")
+	}
 }
