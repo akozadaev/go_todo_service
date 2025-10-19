@@ -13,6 +13,7 @@ type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	Logger   LoggerConfig
+	Trace    TraceConfig
 }
 
 type ServerConfig struct {
@@ -36,6 +37,7 @@ type DatabaseConfig struct {
 
 type LoggerConfig struct {
 	Level       string
+	Format      string // json или text
 	Filename    string
 	MaxSize     int
 	MaxAge      int
@@ -43,6 +45,14 @@ type LoggerConfig struct {
 	Compress    bool
 	LocalTime   bool
 	RotateDaily bool
+	EnableStdout bool // дублировать в stdout для разработки
+}
+
+type TraceConfig struct {
+	IsTraceEnabled    bool
+	Url               string
+	ServiceName       string
+	IsHttpBodyEnabled bool
 }
 
 // Load загружает конфигурацию из переменных окружения
@@ -70,6 +80,7 @@ func Load() (*Config, error) {
 		},
 		Logger: LoggerConfig{
 			Level:       getEnv("LOG_LEVEL", "info"),
+			Format:      getEnv("LOG_FORMAT", "json"),
 			Filename:    getEnv("LOG_FILENAME", "logs/app.log"),
 			MaxSize:     getIntEnv("LOG_MAX_SIZE", 100),
 			MaxAge:      getIntEnv("LOG_MAX_AGE", 30),
@@ -77,6 +88,13 @@ func Load() (*Config, error) {
 			Compress:    getBoolEnv("LOG_COMPRESS", true),
 			LocalTime:   getBoolEnv("LOG_LOCAL_TIME", true),
 			RotateDaily: getBoolEnv("LOG_ROTATE_DAILY", false),
+			EnableStdout: getBoolEnv("LOG_ENABLE_STDOUT", false),
+		},
+		Trace: TraceConfig{
+			IsTraceEnabled:    getBoolEnv("TRACE_ENABLED", false),
+			Url:               getEnv("TRACE_URL", "http://localhost:14268/api/traces"),
+			ServiceName:       getEnv("TRACE_SERVICE_NAME", "go-todo-service"),
+			IsHttpBodyEnabled: getBoolEnv("TRACE_HTTP_BODY_ENABLED", false),
 		},
 	}
 

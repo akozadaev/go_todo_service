@@ -2,15 +2,16 @@ package handler
 
 import (
 	"errors"
-	"log"
 	"net/http"
 	"strconv"
 
+	"github.com/akozadaev/go_todo_service/internal/logger"
 	"github.com/akozadaev/go_todo_service/internal/model"
 	"github.com/akozadaev/go_todo_service/internal/repository"
 	"github.com/akozadaev/go_todo_service/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type TodoHandler struct {
@@ -46,14 +47,19 @@ func (h *TodoHandler) RegisterRoutes(r *gin.RouterGroup) {
 // @Failure 500 {object} ErrorResponse
 // @Router /todos [get]
 func (h *TodoHandler) GetAll(c *gin.Context) {
+	reqLogger := logger.NewRequestLogger(c.Request.Context())
+
+	reqLogger.Info("Getting all todos")
+
 	todos, err := h.service.GetAll(c.Request.Context())
 	if err != nil {
 		// Ошибка получения списка из БД - проблема сервера (500)
-		log.Printf("ERROR: Failed to fetch todos: %v", err)
+		reqLogger.Error("Failed to fetch todos", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to fetch todos"))
 		return
 	}
 
+	reqLogger.Info("Successfully fetched todos", zap.Int("count", len(todos)))
 	c.JSON(http.StatusOK, todos)
 }
 
@@ -70,25 +76,32 @@ func (h *TodoHandler) GetAll(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse
 // @Router /todos/{id} [get]
 func (h *TodoHandler) GetByID(c *gin.Context) {
+	reqLogger := logger.NewRequestLogger(c.Request.Context())
+
 	id, err := parseID(c)
 	if err != nil {
+		reqLogger.Warn("Invalid ID provided", zap.String("id", c.Param("id")), zap.Error(err))
 		c.JSON(http.StatusBadRequest, NewErrorResponse("Invalid ID"))
 		return
 	}
+
+	reqLogger.Info("Getting todo by ID", zap.Uint("todo_id", id))
 
 	todo, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			// 404 - это нормальное поведение, не логируем как ошибку
+			reqLogger.Info("Todo not found", zap.Uint("todo_id", id))
 			c.JSON(http.StatusNotFound, NewErrorResponse("Todo not found"))
 			return
 		}
 		// 500 - реальная проблема с сервером (БД недоступна и т.д.)
-		log.Printf("ERROR: Failed to fetch todo %d: %v", id, err)
+		reqLogger.Error("Failed to fetch todo", zap.Uint("todo_id", id), zap.Error(err))
 		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to fetch todo"))
 		return
 	}
 
+	reqLogger.Info("Successfully fetched todo", zap.Uint("todo_id", id))
 	c.JSON(http.StatusOK, todo)
 }
 
@@ -104,21 +117,27 @@ func (h *TodoHandler) GetByID(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse
 // @Router /todos [post]
 func (h *TodoHandler) Create(c *gin.Context) {
+	reqLogger := logger.NewRequestLogger(c.Request.Context())
+
 	var req model.TodoCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		// 400 - проблема с запросом клиента
+		reqLogger.Warn("Invalid JSON in create request", zap.Error(err))
 		c.JSON(http.StatusBadRequest, NewErrorResponse(err.Error()))
 		return
 	}
 
+	reqLogger.Info("Creating new todo", zap.String("title", req.Title))
+
 	todo, err := h.service.Create(c.Request.Context(), &req)
 	if err != nil {
 		// 500 - не смогли создать в БД (проблема сервера)
-		log.Printf("ERROR: Failed to create todo: %v", err)
+		reqLogger.Error("Failed to create todo", zap.String("title", req.Title), zap.Error(err))
 		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to create todo"))
 		return
 	}
 
+	reqLogger.Info("Successfully created todo", zap.Uint("todo_id", todo.ID), zap.String("title", todo.Title))
 	c.JSON(http.StatusCreated, todo)
 }
 
@@ -136,31 +155,39 @@ func (h *TodoHandler) Create(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse
 // @Router /todos/{id} [put]
 func (h *TodoHandler) Update(c *gin.Context) {
+	reqLogger := logger.NewRequestLogger(c.Request.Context())
+
 	id, err := parseID(c)
 	if err != nil {
+		reqLogger.Warn("Invalid ID provided for update", zap.String("id", c.Param("id")), zap.Error(err))
 		c.JSON(http.StatusBadRequest, NewErrorResponse("Invalid ID"))
 		return
 	}
 
 	var req model.TodoUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		reqLogger.Warn("Invalid JSON in update request", zap.Uint("todo_id", id), zap.Error(err))
 		c.JSON(http.StatusBadRequest, NewErrorResponse(err.Error()))
 		return
 	}
+
+	reqLogger.Info("Updating todo", zap.Uint("todo_id", id))
 
 	todo, err := h.service.Update(c.Request.Context(), id, &req)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			// 404 - задача не найдена (нормальное поведение)
+			reqLogger.Info("Todo not found for update", zap.Uint("todo_id", id))
 			c.JSON(http.StatusNotFound, NewErrorResponse("Todo not found"))
 			return
 		}
 		// 500 - проблема с обновлением в БД
-		log.Printf("ERROR: Failed to update todo %d: %v", id, err)
+		reqLogger.Error("Failed to update todo", zap.Uint("todo_id", id), zap.Error(err))
 		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to update todo"))
 		return
 	}
 
+	reqLogger.Info("Successfully updated todo", zap.Uint("todo_id", id))
 	c.JSON(http.StatusOK, todo)
 }
 
@@ -177,24 +204,31 @@ func (h *TodoHandler) Update(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse
 // @Router /todos/{id} [delete]
 func (h *TodoHandler) Delete(c *gin.Context) {
+	reqLogger := logger.NewRequestLogger(c.Request.Context())
+
 	id, err := parseID(c)
 	if err != nil {
+		reqLogger.Warn("Invalid ID provided for delete", zap.String("id", c.Param("id")), zap.Error(err))
 		c.JSON(http.StatusBadRequest, NewErrorResponse("Invalid ID"))
 		return
 	}
 
+	reqLogger.Info("Deleting todo", zap.Uint("todo_id", id))
+
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			// 404 - задача не найдена (нормальное поведение)
+			reqLogger.Info("Todo not found for delete", zap.Uint("todo_id", id))
 			c.JSON(http.StatusNotFound, NewErrorResponse("Todo not found"))
 			return
 		}
 		// 500 - проблема с удалением из БД
-		log.Printf("ERROR: Failed to delete todo %d: %v", id, err)
+		reqLogger.Error("Failed to delete todo", zap.Uint("todo_id", id), zap.Error(err))
 		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to delete todo"))
 		return
 	}
 
+	reqLogger.Info("Successfully deleted todo", zap.Uint("todo_id", id))
 	c.Status(http.StatusNoContent)
 }
 

@@ -4,10 +4,11 @@ import (
 	"context"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
+	_ "net/http/pprof" // Подключаем pprof
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/akozadaev/go_todo_service/config"
 	"github.com/akozadaev/go_todo_service/internal/database"
@@ -16,6 +17,7 @@ import (
 	"github.com/akozadaev/go_todo_service/internal/middleware"
 	"github.com/akozadaev/go_todo_service/internal/repository"
 	"github.com/akozadaev/go_todo_service/internal/service"
+	"github.com/akozadaev/go_todo_service/pkg/trace"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -28,15 +30,18 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	// Инициализируем логгер
 	loggerCfg := &logger.Config{
-		Level:       cfg.Logger.Level,
-		Filename:    cfg.Logger.Filename,
-		MaxSize:     cfg.Logger.MaxSize,
-		MaxAge:      cfg.Logger.MaxAge,
-		MaxBackups:  cfg.Logger.MaxBackups,
-		Compress:    cfg.Logger.Compress,
-		LocalTime:   cfg.Logger.LocalTime,
-		RotateDaily: cfg.Logger.RotateDaily,
+		Level:        cfg.Logger.Level,
+		Format:       cfg.Logger.Format,
+		Filename:     cfg.Logger.Filename,
+		MaxSize:      cfg.Logger.MaxSize,
+		MaxAge:       cfg.Logger.MaxAge,
+		MaxBackups:   cfg.Logger.MaxBackups,
+		Compress:     cfg.Logger.Compress,
+		LocalTime:    cfg.Logger.LocalTime,
+		RotateDaily:  cfg.Logger.RotateDaily,
+		EnableStdout: cfg.Logger.EnableStdout,
 	}
 	if err := logger.Init(loggerCfg); err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
@@ -51,6 +56,22 @@ func main() {
 		log.Fatalf("Failed to initialize specialized loggers: %v", err)
 	}
 	defer logger.SyncSpecialized()
+
+	// Инициализируем трассировку
+	traceClient, err := trace.NewTraceClient()
+	if err != nil {
+		if logger.Logger != nil {
+			logger.Logger.Fatal("Failed to initialize trace client", zap.Error(err))
+		}
+		log.Fatalf("Failed to initialize trace client: %v", err)
+	}
+	defer func() {
+		if traceClient != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = traceClient.Shutdown(ctx)
+		}
+	}()
 
 	// Логируем запуск приложения
 	if logger.Logger != nil {
@@ -88,17 +109,24 @@ func main() {
 	router := gin.New()
 
 	// Добавляем middleware
-	router.Use(gin.Recovery())      // Встроенный recovery middleware
-	router.Use(middleware.Logger()) // Кастомный logger
-	router.Use(middleware.CORS())   // CORS support
+	router.Use(gin.Recovery())                   // Встроенный recovery middleware
+	router.Use(middleware.RequestIDMiddleware()) // Добавляем request ID
+	router.Use(middleware.Logger())              // Кастомный logger
+	router.Use(middleware.CORS())                // CORS support
 
 	// Регистрируем health endpoints
 	healthHandler.RegisterRoutes(router)
 
 	// Регистрируем API endpoints
 	apiGroup := router.Group("/api/v1")
+	client, _ := trace.NewTraceClient()
+	apiGroup.Use(client.MiddleWareTrace())
 	todoHandler.RegisterRoutes(apiGroup)
 
+	// OpenAPI документация доступна через файловый сервер
+	// Используйте: make swag-local для просмотра документации
+
+	// Регистрируем pprof endpoints для профилирования
 	pprofGroup := router.Group("/debug/pprof")
 	pprofGroup.Use(middleware.PProfAuth()) // Защищаем pprof endpoints
 	{

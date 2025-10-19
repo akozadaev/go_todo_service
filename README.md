@@ -21,6 +21,7 @@ HTTP Request -> Handler -> Service -> Repository -> Database
 - **Веб-фреймворк**: [Gin](https://github.com/gin-gonic/gin)
 - **ORM**: [GORM](https://gorm.io/)
 - **База данных**: PostgreSQL
+- **Логгирование**: [Zap](https://github.com/uber-go/zap) с ротацией через [Lumberjack](https://github.com/natefinch/lumberjack)
 - **Конфигурация**: Environment variables
 - **Hot Reload**: [Air](https://github.com/cosmtrek/air) (для разработки)
 
@@ -224,7 +225,110 @@ make init              # Создать .env из .env.example
 | `DB_SSLMODE`            | SSL режим PostgreSQL        | disable      |
 | `DB_MAX_IDLE_CONNS`     | Макс. idle соединений       | 10           |
 | `DB_MAX_OPEN_CONNS`     | Макс. открытых соединений   | 100          |
+| `LOG_LEVEL`             | Уровень логирования (debug, info, warn, error, fatal) | info         |
+| `LOG_FORMAT`            | Формат логов (json, text)   | json         |
+| `LOG_FILENAME`          | Путь к файлу лога (пустая строка = только stdout) | logs/app.log |
+| `LOG_MAX_SIZE`          | Макс. размер файла (MB)     | 100          |
+| `LOG_MAX_AGE`           | Макс. возраст файла (дни)   | 30           |
+| `LOG_MAX_BACKUPS`       | Макс. количество бэкапов    | 5            |
+| `LOG_COMPRESS`          | Сжимать старые файлы        | true         |
+| `LOG_LOCAL_TIME`        | Использовать локальное время| true         |
+| `LOG_ROTATE_DAILY`      | Ротация по дням             | false        |
+| `LOG_ENABLE_STDOUT`     | Дублировать в stdout        | false        |
+| `TRACE_ENABLED`         | Включить трассировку        | false        |
+| `TRACE_URL`             | URL Jaeger коллектора       | http://localhost:14268/api/traces |
+| `TRACE_SERVICE_NAME`    | Имя сервиса для трассировки | go-todo-service |
+| `TRACE_HTTP_BODY_ENABLED` | Логировать HTTP body       | false        |
 
+## Логгирование
+
+Проект использует структурированное логгирование на основе библиотеки [Zap](https://github.com/uber-go/zap) с поддержкой ротации логов через [Lumberjack](https://github.com/natefinch/lumberjack).
+
+### Особенности
+
+- **Структурированные логи**: JSON формат для production, текстовый для разработки
+- **Ротация логов**: По размеру файла и времени с настраиваемыми параметрами
+- **Request ID**: Уникальный идентификатор для каждого HTTP запроса
+- **Уровни логгирования**: debug, info, warn, error, fatal
+- **Специализированные логгеры**: Отдельные файлы для HTTP, ошибок, доступа и аудита
+- **Контекстное логгирование**: Автоматическое добавление request ID и других полей
+
+### Режимы работы
+
+#### Production режим
+```bash
+# Логи только в файл (JSON формат)
+LOG_FORMAT=json
+LOG_FILENAME=logs/app.log
+LOG_ENABLE_STDOUT=false
+```
+
+#### Development режим
+```bash
+# Логи в stdout (текстовый формат)
+LOG_FORMAT=text
+LOG_FILENAME=
+LOG_ENABLE_STDOUT=true
+```
+
+#### Гибридный режим
+```bash
+# Логи и в файл, и в stdout
+LOG_FORMAT=json
+LOG_FILENAME=logs/app.log
+LOG_ENABLE_STDOUT=true
+```
+
+### Структура логов
+
+#### HTTP запросы
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "level": "INFO",
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
+  "method": "GET",
+  "path": "/api/v1/todos",
+  "status": 200,
+  "latency": "15ms",
+  "client_ip": "127.0.0.1",
+  "user_agent": "curl/7.68.0",
+  "body_size": 1024
+}
+```
+
+#### Ошибки приложения
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "level": "ERROR",
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
+  "message": "Failed to fetch todo",
+  "todo_id": 123,
+  "error": "database connection failed"
+}
+```
+
+### Файлы логов
+
+- `logs/app.log` - Основные логи приложения
+- `logs/http.log` - HTTP запросы и ответы
+- `logs/error.log` - Ошибки приложения
+- `logs/access.log` - События доступа
+- `logs/audit.log` - Аудит действий
+
+### Команды для разработки
+
+```bash
+# Запуск с stdout логгированием
+make dev-stdout
+
+# Запуск с Air (hot reload)
+make dev
+
+# Обычный запуск
+make run
+```
 
 ### Code Style
 

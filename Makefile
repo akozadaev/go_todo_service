@@ -18,6 +18,11 @@ dev:
 	@mkdir -p tmp
 	@air -c air.toml
 
+# Запуск в режиме разработки с stdout логгированием
+dev-stdout:
+	@echo "Running in development mode with stdout logging..."
+	@LOG_ENABLE_STDOUT=true LOG_FORMAT=text go run cmd/api/main.go
+
 # Установка зависимостей
 deps:
 	@echo "Downloading dependencies..."
@@ -174,6 +179,7 @@ help:
 	@echo "  make build          - Собрать бинарный файл приложения"
 	@echo "  make run            - Запустить приложение"
 	@echo "  make dev            - Запустить с Air (hot reload)"
+	@echo "  make dev-stdout     - Запустить с stdout логгированием для разработки"
 	@echo "  make deps           - Скачать и обновить зависимости"
 	@echo "  make lint           - Запустить линтер (golangci-lint)"
 	@echo "  make fmt            - Форматировать код"

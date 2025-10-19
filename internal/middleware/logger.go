@@ -58,3 +58,17 @@ func Logger() gin.HandlerFunc {
 		logger.LogHTTPRequest(method, path, statusCode, latency, clientIP, userAgent, bodySize)
 	}
 }
+
+// RequestIDMiddleware добавляет request ID к каждому запросу
+func RequestIDMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		requestID := logger.GenerateRequestID()
+		c.Header("X-Request-ID", requestID)
+
+		// Добавляем request ID в контекст
+		ctx := logger.AddRequestIDToContext(c.Request.Context(), requestID)
+		c.Request = c.Request.WithContext(ctx)
+
+		c.Next()
+	}
+}
