@@ -14,11 +14,12 @@ import (
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	trace2 "go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 )
@@ -51,33 +52,44 @@ func NewTraceClient() (*Tracer, error) {
 		return t, nil
 	}
 
-	// Create the Jaeger exporter
-	exp, err := jaeger.New(
-		jaeger.WithCollectorEndpoint(
-			jaeger.WithEndpoint(t.cfg.Url),
+	// Create the OTLP HTTP exporter
+	exp, err := otlptracehttp.New(
+		context.Background(),
+		otlptracehttp.WithEndpoint(t.cfg.Url),
+		otlptracehttp.WithInsecure(), // для локальной разработки
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create resource with service information
+	res, err := resource.New(
+		context.Background(),
+		resource.WithAttributes(
+			semconv.ServiceNameKey.String(t.cfg.ServiceName),
+			semconv.ServiceVersionKey.String("1.0.0"),
+			attribute.String("environment", "development"),
 		),
 	)
-
 	if err != nil {
 		return nil, err
 	}
 
 	tp := tracesdk.NewTracerProvider(
-		// tracesdk.WithSampler(),
-		// Always be sure to batch in production.
 		tracesdk.WithBatcher(exp),
-		// Record information about this application in a Resource.
-		tracesdk.WithResource(resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceNameKey.String(t.cfg.ServiceName),
-			// attribute.String("environment", "development"),
-			// attribute.Int64("ID", 1),
-		)),
+		tracesdk.WithResource(res),
+		tracesdk.WithSampler(tracesdk.AlwaysSample()), // для разработки - всегда семплируем
 	)
 
+	// Set global tracer provider and propagator
 	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
+
 	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
-		//	error handler
+		log.Error().Err(err).Msg("OpenTelemetry error")
 	}))
 
 	t.tp = tp
@@ -95,50 +107,74 @@ func (t *Tracer) InjectHttpTraceId(ctx context.Context, req *http.Request) {
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 }
 
-// MiddleWareTrace сгенерированный  метод для тестирования
+// MiddleWareTrace создает корневой span для каждого HTTP запроса
 func (t *Tracer) MiddleWareTrace() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if t == nil || !t.cfg.IsTraceEnabled {
 			c.Next()
-
 			return
 		}
 
-		parentCtx, span := t.CreateSpan(c.Request.Context(), "["+c.Request.Method+"] "+c.FullPath(), "middleware")
+		// Извлекаем контекст из заголовков (для распределенной трассировки)
+		ctx := otel.GetTextMapPropagator().Extract(c.Request.Context(), propagation.HeaderCarrier(c.Request.Header))
 
+		// Создаем корневой span для HTTP запроса
+		spanName := c.Request.Method + " " + c.FullPath()
+		ctx, span := t.CreateSpan(ctx, spanName, "http")
 		defer span.End()
 
+		// Добавляем атрибуты к span
+		span.SetAttributes(
+			attribute.String("http.method", c.Request.Method),
+			attribute.String("http.url", c.Request.URL.String()),
+			attribute.String("http.route", c.FullPath()),
+			attribute.String("http.user_agent", c.Request.UserAgent()),
+			attribute.String("http.scheme", c.Request.URL.Scheme),
+			attribute.String("http.host", c.Request.Host),
+		)
+
+		// Добавляем тело запроса если включено
 		if t.cfg.IsHttpBodyEnabled {
 			if !strings.HasPrefix(c.GetHeader(httpheader.ContentType), httpctype.MIMEDataForm) {
 				bodyBytes, _ := io.ReadAll(c.Request.Body)
 				c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
 				span.SetAttributes(attribute.String(AttributeReqBody, string(bodyBytes)))
 			}
 		}
 
-		c.Request = c.Request.WithContext(parentCtx)
+		// Передаем контекст с span дальше
+		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 
-		// парсинг ошибок
-		span.SetAttributes(attribute.Int(AttributeRespHttpCode, c.Writer.Status()))
-		{
-			excep := c.Keys["exception"]
+		// Добавляем информацию о ответе
+		span.SetAttributes(
+			attribute.Int(AttributeRespHttpCode, c.Writer.Status()),
+			attribute.Int("http.response.size", c.Writer.Size()),
+		)
 
+		// Обрабатываем ошибки
+		if excep := c.Keys["exception"]; excep != nil {
 			if v, ok := excep.(error); ok {
 				span.SetAttributes(attribute.String(AttributeRespErrMsg, v.Error()))
+				span.RecordError(v)
 			}
+		}
+
+		// Устанавливаем статус span в зависимости от HTTP кода
+		if c.Writer.Status() >= 400 {
+			span.SetStatus(codes.Error, "HTTP error")
 		}
 	}
 }
 
-// CreateSpan сгенерированный  метод для тестирования
+// CreateSpan создает новый span с правильной иерархией
 func (t *Tracer) CreateSpan(ctx context.Context, name string, fun string) (context.Context, trace2.Span) {
 	if t == nil || t.tp == nil {
 		return context.Background(), noop.Span{}
 	}
 
-	return t.tp.Tracer(t.ServiceName).Start(ctx, name)
+	tracer := otel.Tracer(t.ServiceName)
+	return tracer.Start(ctx, name)
 }
 
 // initTraceConfig -  инициализирует конфиг трассировки, читает  из файла  .env переменки

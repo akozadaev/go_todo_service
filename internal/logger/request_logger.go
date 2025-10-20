@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -24,6 +25,15 @@ func NewRequestLogger(ctx context.Context) *RequestLogger {
 	// Добавляем request ID если есть
 	if requestID := ctx.Value(RequestIDKey{}); requestID != nil {
 		fields = append(fields, zap.String("request_id", requestID.(string)))
+	}
+
+	// Добавляем trace_id и span_id из OpenTelemetry если есть
+	if span := trace.SpanFromContext(ctx); span.IsRecording() {
+		spanCtx := span.SpanContext()
+		if spanCtx.IsValid() {
+			fields = append(fields, zap.String("trace_id", spanCtx.TraceID().String()))
+			fields = append(fields, zap.String("span_id", spanCtx.SpanID().String()))
+		}
 	}
 
 	return &RequestLogger{
@@ -115,4 +125,3 @@ func GetRequestIDFromContext(ctx context.Context) (string, bool) {
 	requestID, ok := ctx.Value(RequestIDKey{}).(string)
 	return requestID, ok
 }
-

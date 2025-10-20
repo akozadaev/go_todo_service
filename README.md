@@ -22,6 +22,7 @@ HTTP Request -> Handler -> Service -> Repository -> Database
 - **ORM**: [GORM](https://gorm.io/)
 - **База данных**: PostgreSQL
 - **Логгирование**: [Zap](https://github.com/uber-go/zap) с ротацией через [Lumberjack](https://github.com/natefinch/lumberjack)
+- **Трассировка**: [OpenTelemetry](https://opentelemetry.io/) с экспортом в [Jaeger](https://www.jaegertracing.io/)
 - **Конфигурация**: Environment variables
 - **Hot Reload**: [Air](https://github.com/cosmtrek/air) (для разработки)
 
@@ -329,6 +330,71 @@ make dev
 # Обычный запуск
 make run
 ```
+
+## Трассировка (OpenTelemetry)
+
+Проект интегрирован с OpenTelemetry для распределенной трассировки запросов через все слои приложения.
+
+### Особенности
+
+- **Иерархическая трассировка**: Корневые span'ы для HTTP запросов с дочерними span'ами в service и repository слоях
+- **Автоматическая интеграция**: Trace_id и span_id автоматически добавляются в структурированные логи
+- **Распределенная трассировка**: Поддержка передачи контекста между сервисами через HTTP заголовки
+- **Экспорт в Jaeger**: Трассировки отправляются в Jaeger для визуализации и анализа
+
+### Архитектура трассировки
+
+```
+HTTP Request (GET /api/v1/todos)
+├── middleware.MiddleWareTrace() [корневой span]
+    ├── service.GetAllTodos() [дочерний span]
+        └── repository.GetAllTodos() [дочерний span]
+```
+
+### Настройка
+
+Добавьте в `.env`:
+
+```env
+# Конфигурация трассировки
+TRACE_ENABLED=true
+TRACE_URL=http://localhost:14268/api/traces
+TRACE_SERVICE_NAME=go-todo-service
+TRACE_HTTP_BODY_ENABLED=false
+```
+
+### Запуск Jaeger
+
+```bash
+# Запуск Jaeger локально
+./scripts/jaeger_start.sh
+
+# Проверка работы
+curl http://localhost:16686/api/services
+```
+
+### Примеры trace_id в логах
+
+```json
+{
+  "level": "INFO",
+  "timestamp": "2025-10-20T01:09:46.986+0300",
+  "msg": "Successfully created todo",
+  "request_id": "32dfb143-184f-4b13-bb7e-202c6095c91e",
+  "trace_id": "04fc174975213831822a4c6fcd06cbcd",
+  "span_id": "2875b225df2b488e",
+  "todo_id": 81,
+  "title": "Тест с Jaeger exporter"
+}
+```
+
+### Мониторинг
+
+- **Jaeger UI**: `http://localhost:16686`
+- **Поиск трассировок**: `grep "trace_id" logs/app.log`
+- **Подсчет трассировок**: `grep "trace_id" logs/app.log | wc -l`
+
+Подробная документация по трассировке доступна в [TRACING_DOCUMENTATION.md](./TRACING_DOCUMENTATION.md).
 
 ### Code Style
 

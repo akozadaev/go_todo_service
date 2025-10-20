@@ -36,15 +36,15 @@ type DatabaseConfig struct {
 }
 
 type LoggerConfig struct {
-	Level       string
-	Format      string // json или text
-	Filename    string
-	MaxSize     int
-	MaxAge      int
-	MaxBackups  int
-	Compress    bool
-	LocalTime   bool
-	RotateDaily bool
+	Level        string
+	Format       string // json или text
+	Filename     string
+	MaxSize      int
+	MaxAge       int
+	MaxBackups   int
+	Compress     bool
+	LocalTime    bool
+	RotateDaily  bool
 	EnableStdout bool // дублировать в stdout для разработки
 }
 
@@ -79,20 +79,20 @@ func Load() (*Config, error) {
 			MaxOpenConns: getIntEnv("DB_MAX_OPEN_CONNS", 100),
 		},
 		Logger: LoggerConfig{
-			Level:       getEnv("LOG_LEVEL", "info"),
-			Format:      getEnv("LOG_FORMAT", "json"),
-			Filename:    getEnv("LOG_FILENAME", "logs/app.log"),
-			MaxSize:     getIntEnv("LOG_MAX_SIZE", 100),
-			MaxAge:      getIntEnv("LOG_MAX_AGE", 30),
-			MaxBackups:  getIntEnv("LOG_MAX_BACKUPS", 5),
-			Compress:    getBoolEnv("LOG_COMPRESS", true),
-			LocalTime:   getBoolEnv("LOG_LOCAL_TIME", true),
-			RotateDaily: getBoolEnv("LOG_ROTATE_DAILY", false),
+			Level:        getEnv("LOG_LEVEL", "info"),
+			Format:       getEnv("LOG_FORMAT", "json"),
+			Filename:     getEnv("LOG_FILENAME", "logs/app.log"),
+			MaxSize:      getIntEnv("LOG_MAX_SIZE", 100),
+			MaxAge:       getIntEnv("LOG_MAX_AGE", 30),
+			MaxBackups:   getIntEnv("LOG_MAX_BACKUPS", 5),
+			Compress:     getBoolEnv("LOG_COMPRESS", true),
+			LocalTime:    getBoolEnv("LOG_LOCAL_TIME", true),
+			RotateDaily:  getBoolEnv("LOG_ROTATE_DAILY", false),
 			EnableStdout: getBoolEnv("LOG_ENABLE_STDOUT", false),
 		},
 		Trace: TraceConfig{
 			IsTraceEnabled:    getBoolEnv("TRACE_ENABLED", false),
-			Url:               getEnv("TRACE_URL", "http://localhost:14268/api/traces"),
+			Url:               getEnv("TRACE_URL", "http://localhost:4318/v1/traces"),
 			ServiceName:       getEnv("TRACE_SERVICE_NAME", "go-todo-service"),
 			IsHttpBodyEnabled: getBoolEnv("TRACE_HTTP_BODY_ENABLED", false),
 		},
