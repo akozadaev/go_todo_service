@@ -119,8 +119,9 @@ func main() {
 
 	// Регистрируем API endpoints
 	apiGroup := router.Group("/api/v1")
-	client, _ := trace.NewTraceClient()
-	apiGroup.Use(client.MiddleWareTrace())
+	if traceClient != nil {
+		apiGroup.Use(traceClient.MiddleWareTrace())
+	}
 	todoHandler.RegisterRoutes(apiGroup)
 
 	// OpenAPI документация доступна через файловый сервер

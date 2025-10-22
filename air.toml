@@ -2,9 +2,8 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-args_bin = []
 bin = "tmp/main"
-cmd = "bash -c 'go build -trimpath -o ./tmp/main ./cmd/api'"
+cmd = "go build ./cmd/api && cp /usr/local/go/bin/api ./tmp/main && chmod +x ./tmp/main"
 delay = 1000
 exclude_dir = ["assets", "tmp", "vendor", "bin", ".git", ".idea"]
 exclude_file = []

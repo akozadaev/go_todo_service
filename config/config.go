@@ -91,8 +91,8 @@ func Load() (*Config, error) {
 			EnableStdout: getBoolEnv("LOG_ENABLE_STDOUT", false),
 		},
 		Trace: TraceConfig{
-			IsTraceEnabled:    getBoolEnv("TRACE_ENABLED", false),
-			Url:               getEnv("TRACE_URL", "http://localhost:4318/v1/traces"),
+			IsTraceEnabled:    getBoolEnv("TRACE_ENABLED", true),
+			Url:               getEnv("TRACE_URL", "localhost:14268/v1/traces"),
 			ServiceName:       getEnv("TRACE_SERVICE_NAME", "go-todo-service"),
 			IsHttpBodyEnabled: getBoolEnv("TRACE_HTTP_BODY_ENABLED", false),
 		},

@@ -55,8 +55,8 @@ func NewTraceClient() (*Tracer, error) {
 	// Create the OTLP HTTP exporter
 	exp, err := otlptracehttp.New(
 		context.Background(),
-		otlptracehttp.WithEndpoint(t.cfg.Url),
-		otlptracehttp.WithInsecure(), // для локальной разработки
+		otlptracehttp.WithEndpoint(t.cfg.Url), //"localhost:4318"
+		otlptracehttp.WithInsecure(),          // для локальной разработки
 	)
 	if err != nil {
 		return nil, err
