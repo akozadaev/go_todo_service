@@ -19,6 +19,7 @@ type Config struct {
 type ServerConfig struct {
 	Host            string
 	Port            string
+	GRPCPort        string
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	ShutdownTimeout time.Duration
@@ -64,6 +65,7 @@ func Load() (*Config, error) {
 		Server: ServerConfig{
 			Host:            getEnv("SERVER_HOST", "localhost"),
 			Port:            getEnv("SERVER_PORT", "8080"),
+			GRPCPort:        getEnv("SERVER_GRPC_PORT", "50051"),
 			ReadTimeout:     getDurationEnv("SERVER_READ_TIMEOUT", 10*time.Second),
 			WriteTimeout:    getDurationEnv("SERVER_WRITE_TIMEOUT", 10*time.Second),
 			ShutdownTimeout: getDurationEnv("SERVER_SHUTDOWN_TIMEOUT", 5*time.Second),
@@ -123,6 +125,11 @@ func (c *DatabaseConfig) GetDSN() string {
 // GetServerAddress возвращает адрес сервера
 func (c *ServerConfig) GetServerAddress() string {
 	return fmt.Sprintf("%s:%s", c.Host, c.Port)
+}
+
+// GetGRPCAddress возвращает адрес gRPC сервера
+func (c *ServerConfig) GetGRPCAddress() string {
+	return fmt.Sprintf("%s:%s", c.Host, c.GRPCPort)
 }
 
 func getEnv(key, defaultValue string) string {

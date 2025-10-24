@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof" // Подключаем pprof
 	"os"
@@ -10,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	todopb "github.com/akozadaev/go_todo_service/api/proto"
 	"github.com/akozadaev/go_todo_service/config"
 	"github.com/akozadaev/go_todo_service/internal/database"
 	"github.com/akozadaev/go_todo_service/internal/handler"
@@ -21,6 +23,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -102,6 +106,7 @@ func main() {
 	todoRepo := repository.NewTodoRepository(db)
 	todoService := service.NewTodoService(todoRepo)
 	todoHandler := handler.NewTodoHandler(todoService)
+	todoGRPCHandler := handler.NewTodoGRPCHandler(todoService)
 	healthHandler := handler.NewHealthHandler(db)
 
 	// Настраиваем Gin
@@ -153,18 +158,50 @@ func main() {
 		WriteTimeout: cfg.Server.WriteTimeout,
 	}
 
-	// Запускаем сервер в отдельной горутине
+	// Создаем gRPC сервер
+	grpcServer := grpc.NewServer()
+	reflection.Register(grpcServer) // Включаем reflection для grpcurl и других инструментов
+
+	// Регистрируем gRPC сервис
+	todopb.RegisterTodoServiceServer(grpcServer, todoGRPCHandler)
+
+	// Запускаем HTTP сервер в отдельной горутине
 	go func() {
 		if logger.Logger != nil {
-			logger.Logger.Info("Starting server", zap.String("address", server.Addr))
+			logger.Logger.Info("Starting HTTP server", zap.String("address", server.Addr))
 		} else {
-			log.Printf("Starting server on %s", server.Addr)
+			log.Printf("Starting HTTP server on %s", server.Addr)
 		}
 		if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			if logger.Logger != nil {
-				logger.Logger.Fatal("Failed to start server", zap.Error(err))
+				logger.Logger.Fatal("Failed to start HTTP server", zap.Error(err))
 			}
-			log.Fatalf("Failed to start server: %v", err)
+			log.Fatalf("Failed to start HTTP server: %v", err)
+		}
+	}()
+
+	// Запускаем gRPC сервер в отдельной горутине
+	go func() {
+		grpcAddr := cfg.Server.GetGRPCAddress()
+		lis, err := net.Listen("tcp", grpcAddr)
+		if err != nil {
+			if logger.Logger != nil {
+				logger.Logger.Fatal("Failed to listen on gRPC address", zap.String("address", grpcAddr), zap.Error(err))
+			}
+			log.Fatalf("Failed to listen on gRPC address %s: %v", grpcAddr, err)
+		}
+
+		if logger.Logger != nil {
+			logger.Logger.Info("Starting gRPC server", zap.String("address", grpcAddr))
+		} else {
+			log.Printf("Starting gRPC server on %s", grpcAddr)
+		}
+
+		if err = grpcServer.Serve(lis); err != nil {
+			if logger.Logger != nil {
+				logger.Logger.Fatal("Failed to serve gRPC", zap.Error(err))
+			}
+			log.Fatalf("Failed to serve gRPC: %v", err)
 		}
 	}()
 
@@ -186,10 +223,26 @@ func main() {
 	// Останавливаем HTTP сервер (ждем завершения активных запросов)
 	if err = server.Shutdown(ctx); err != nil {
 		if logger.Logger != nil {
-			logger.Logger.Error("Server forced to shutdown", zap.Error(err))
+			logger.Logger.Error("HTTP server forced to shutdown", zap.Error(err))
 		} else {
-			log.Printf("Server forced to shutdown: %v", err)
+			log.Printf("HTTP server forced to shutdown: %v", err)
 		}
+	}
+
+	// Останавливаем gRPC сервер
+	if logger.Logger != nil {
+		logger.Logger.Info("Stopping gRPC server...")
+	} else {
+		log.Println("Stopping gRPC server...")
+	}
+
+	// GracefulStop ждет завершения всех активных запросов
+	grpcServer.GracefulStop()
+
+	if logger.Logger != nil {
+		logger.Logger.Info("gRPC server stopped")
+	} else {
+		log.Println("gRPC server stopped")
 	}
 
 	// Закрываем соединение с базой данных после остановки сервера
