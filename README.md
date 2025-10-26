@@ -12,13 +12,22 @@ gitПроект следует **Clean Architecture** и **SOLID** принци�
 
 ```
 HTTP Request -> Handler -> Service -> Repository -> Database
-
+gRPC Request -> gRPC Handler -> Service -> Repository -> Database
 ```
+
+### Архитектура с поддержкой gRPC
+
+Проект поддерживает два типа API:
+- **REST API** (HTTP/1.1) на порту 8080 - для внешних клиентов
+- **gRPC API** (HTTP/2) на порту 50051 - для внутренних микросервисов
+
+Оба API используют общий слой Service и Repository.
 
 ## Технологии
 
 - **Язык**: Go 1.25
 - **Веб-фреймворк**: [Gin](https://github.com/gin-gonic/gin)
+- **gRPC**: [gRPC](https://grpc.io/) для микросервисной коммуникации
 - **ORM**: [GORM](https://gorm.io/)
 - **База данных**: PostgreSQL
 - **Логгирование**: [Zap](https://github.com/uber-go/zap) с ротацией через [Lumberjack](https://github.com/natefinch/lumberjack)
@@ -215,6 +224,7 @@ make init              # Создать .env из .env.example
 |-------------------------|-----------------------------| ------------ |
 | `SERVER_HOST`           | Хост сервера                | localhost    |
 | `SERVER_PORT`           | Порт сервера                | 8080         |
+| `SERVER_GRPC_PORT`           | Порт gRPC сервера                | 50051         |
 | `SERVER_READ_TIMEOUT`   | Таймаут чтения (сек)        | 10           |
 | `SERVER_WRITE_TIMEOUT`  | Таймаут записи (сек)        | 10           |
 | `SERVER_SHUTDOWN_TIMEOUT`| Таймаут завершения (сек)   | 5            |
@@ -413,4 +423,89 @@ make lint
 ```bash
 swag init -g ./cmd/api/main.go -o ./api 
 ```
+
+## gRPC API
+
+Проект поддерживает gRPC API для микросервисной коммуникации. gRPC сервер запускается параллельно с REST API на порту 50051.
+
+### Возможности gRPC API
+
+#### Базовые операции
+
+- **CreateTodo** - создание задачи
+- **GetTodo** - получение задачи по ID
+- **ListTodos** - получение всех задач
+- **UpdateTodo** - обновление задачи
+- **DeleteTodo** - удаление задачи
+
+#### Стриминг операции
+
+- **ListTodosStream** - серверный поток для получения всех задач
+- **BulkCreateTodos** - клиентский поток для массового создания задач
+
+### Запуск gRPC сервера
+
+```bash
+make dev
+```
+
+Сервер будет доступен на:
+- REST API: `http://localhost:8080`
+- gRPC API: `localhost:50051`
+
+### Тестирование gRPC API
+
+#### Использование примерного клиента
+
+```bash
+cd examples/grpc_client
+go run main.go
+```
+
+#### Использование grpcurl
+
+```bash
+# Установка grpcurl
+go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
+
+# Список сервисов
+grpcurl -plaintext localhost:50051 list
+
+# Создание задачи
+grpcurl -plaintext -d '{
+  "title": "Купить продукты",
+  "description": "Молоко, хлеб, яйца",
+  "done": false
+}' localhost:50051 todo.TodoService/CreateTodo
+
+# Получение всех задач
+grpcurl -plaintext localhost:50051 todo.TodoService/ListTodos
+```
+
+### Генерация proto файлов
+
+```bash
+# Генерация Go кода из proto файлов
+make proto
+
+# Очистка сгенерированных файлов
+make proto-clean
+```
+
+### Proto файлы
+
+Proto файлы находятся в `api/proto/todo.proto`. После изменения proto файлов необходимо:
+
+1. Сгенерировать Go код: `make proto`
+2. Перезапустить сервер: `make dev`
+
+### Преимущества gRPC для микросервисов
+
+- **Высокая производительность**: Бинарный протокол Protocol Buffers быстрее JSON
+- **HTTP/2**: Поддержка мультиплексирования и стриминга
+- **Типобезопасность**: Строгая типизация через .proto файлы
+- **Автогенерация**: Автоматическая генерация клиентов и серверов
+- **Стриминг**: Поддержка однонаправленных и двунаправленных потоков
+
+Подробнее см. [examples/grpc_client/README.md](./examples/grpc_client/README.md)
 

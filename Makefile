@@ -1,4 +1,4 @@
-.PHONY: run dev test-curl clean help build lint test profile profile-web profile-load swag swag-serve swag-local
+.PHONY: run dev test-curl clean help build lint test profile profile-web profile-load swag swag-serve swag-local proto proto-gen proto-clean jaeger-up jaeger-stop jaeger-rm jaeger-down
 
 SERVER_URL = http://localhost:8080/api/v1
 
@@ -115,7 +115,24 @@ profile-load:
 	@echo "Running full profiling test with load..."
 	@./scripts/run_profiling_test.sh
 
-# Очистка временных файлов
+# Генерация proto файлов
+proto:
+	@echo "Generating Go code from proto files..."
+	@mkdir -p api/proto/gen/todo
+	@which protoc > /dev/null || (echo "Please install protoc: https://grpc.io/docs/protoc-installation/" && exit 1)
+	@protoc --go_out=. --go-grpc_out=. \
+		--go_opt=paths=source_relative \
+		--go-grpc_opt=paths=source_relative \
+		api/proto/todo.proto
+	@echo "Proto files generated successfully in api/proto/gen/todo/"
+
+# Очистка сгенерированных proto файлов
+proto-clean:
+	@echo "Cleaning generated proto files..."
+	rm -rf api/proto/gen
+	@echo "Proto files cleaned"
+
+# Очистка временных файлов (обновлено)
 clean:
 	@echo "Cleaning up..."
 	rm -f tmp/main tmp/build-errors.log
@@ -124,7 +141,8 @@ clean:
 	rm -f coverage.out coverage.html
 	rm -rf profiles/
 	rm -rf logs/*.log
-	rm -rf api/
+	rm -rf api/proto/gen
+	@echo "Note: api/ folder preserved (contains swagger files)"
 
 # Создание .env из примера
 init:
@@ -173,6 +191,21 @@ swag-local:
 	@echo "Press Ctrl+C to stop"
 	@python3 -m http.server 8081 --directory ./api
 
+# Jaeger — это система распределенной трассировки
+jaeger-up:
+	docker run -d --name jaeger \
+		-p 4318:4318 \
+		-p 16686:16686 \
+		jaegertracing/all-in-one
+
+jaeger-stop:
+	docker stop jaeger || true
+
+jaeger-rm:
+	docker rm jaeger || true
+
+jaeger-down: jaeger-stop jaeger-rm
+
 # Помощь
 help:
 	@echo "Доступные команды:"
@@ -192,6 +225,12 @@ help:
 	@echo "  make swag           - Сгенерировать OpenAPI документацию"
 	@echo "  make swag-serve     - Показать способы просмотра OpenAPI документации"
 	@echo "  make swag-local     - Запустить локальный файловый сервер для просмотра OpenAPI"
+	@echo "  make proto          - Сгенерировать Go код из proto файлов"
+	@echo "  make proto-clean    - Очистить сгенерированные proto файлы"
 	@echo "  make clean          - Очистить временные файлы"
 	@echo "  make init           - Создать .env из .env.example"
+	@echo "  make jaeger-up      - Запускает контейнер Jaeger в фоновом режиме с нужными портами."
+	@echo "  make jaeger-stop    - Останавливает контейнер (если он запущен)"
+	@echo "  make jaeger-rm      - Удаляет контейнер (если он существует)"
+	@echo "  make jaeger-down    - Последовательно останавливает и удаляет контейнер"
 	@echo "  make help           - Показать это сообщение"
