@@ -6,3 +6,4 @@ cd /home/akozadaev/programms/jaeger/jaeger-2.2.0-linux-amd64 && ./jaeger --confi
 
 
 
+
