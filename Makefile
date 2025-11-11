@@ -2,8 +2,11 @@
 
 SERVER_URL ?= http://localhost:8080/api/v1
 USER_ID ?= 1
+GRPC_ADDR ?= localhost:50051
 REST_USER_HEADER := -H "X-User-ID: $(USER_ID)"
 CURL_JSON_HEADER := -H "Content-Type: application/json"
+GRPC_METADATA_HEADER := -H "user-id: $(USER_ID)"
+GRPC_JSON_PAYLOAD := -format json
 
 # Сборка бинарника
 build:
@@ -105,6 +108,50 @@ test-curl:
 	@echo "10. Финальный список задач (должна остаться только ID=1)..."
 	curl -s -X GET $(REST_USER_HEADER) $(SERVER_URL)/todos
 	@echo
+
+# Тестирование gRPC API через grpcurl
+test-grpc:
+	@echo "Testing gRPC API with user ID: $(USER_ID) against $(GRPC_ADDR)"
+	@which grpcurl > /dev/null || (echo "grpcurl not found. Install with: go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest" && exit 1)
+	@echo "1. Список методов TodoService:"
+	grpcurl -plaintext $(GRPC_METADATA_HEADER) $(GRPC_ADDR) list todo.TodoService
+	@echo
+
+	@echo "2. Создание задачи 'Купить продукты'..."
+	grpcurl -plaintext $(GRPC_METADATA_HEADER) -d '{"title":"Купить продукты","description":"Молоко, хлеб, яйца","done":false}' $(GRPC_ADDR) todo.TodoService/CreateTodo
+	@echo
+
+	@echo "3. Создание задачи 'Прогуляться с собакой'..."
+	grpcurl -plaintext $(GRPC_METADATA_HEADER) -d '{"title":"Прогуляться с собакой","description":"30 минут в парке","done":false}' $(GRPC_ADDR) todo.TodoService/CreateTodo
+	@echo
+
+	@echo "4. Получение всех задач..."
+	grpcurl -plaintext $(GRPC_METADATA_HEADER) $(GRPC_ADDR) todo.TodoService/ListTodos
+	@echo
+
+	@echo "5. Получение задачи с ID=1..."
+	grpcurl -plaintext $(GRPC_METADATA_HEADER) -d '{"id":1}' $(GRPC_ADDR) todo.TodoService/GetTodo
+	@echo
+
+	@echo "6. Обновление задачи ID=1 (отметить как выполненную)..."
+	grpcurl -plaintext $(GRPC_METADATA_HEADER) -d '{"id":1,"title":"Купить продукты","description":"Молоко, хлеб, яйца","done":true}' $(GRPC_ADDR) todo.TodoService/UpdateTodo
+	@echo
+
+	@echo "7. Повторная проверка задачи ID=1..."
+	grpcurl -plaintext $(GRPC_METADATA_HEADER) -d '{"id":1}' $(GRPC_ADDR) todo.TodoService/GetTodo
+	@echo
+
+	@echo "8. Удаление задачи ID=2..."
+	grpcurl -plaintext $(GRPC_METADATA_HEADER) -d '{"id":2}' $(GRPC_ADDR) todo.TodoService/DeleteTodo
+	@echo " (удалено)"
+	@echo
+
+	@echo "9. Попытка получить удалённую задачу ID=2..."
+	grpcurl -plaintext $(GRPC_METADATA_HEADER) -d '{"id":2}' $(GRPC_ADDR) todo.TodoService/GetTodo || true
+	@echo
+
+	@echo "10. Финальный список задач..."
+	grpcurl -plaintext $(GRPC_METADATA_HEADER) $(GRPC_ADDR) todo.TodoService/ListTodos
 
 # Профилирование
 profile:
@@ -226,6 +273,7 @@ help:
 	@echo "  make vet            - Запустить go vet"
 	@echo "  make test           - Запустить тесты с покрытием"
 	@echo "  make test-curl      - Протестировать API через cURL"
+	@echo "  make test-grpc      - Протестировать gRPC API через grpcurl"
 	@echo "  make profile        - Запустить тест профилирования"
 	@echo "  make profile-web    - Показать информацию о веб-интерфейсе pprof"
 	@echo "  make profile-load   - Запустить полный тест профилирования с нагрузкой"
@@ -242,6 +290,7 @@ help:
 	@echo "  make jaeger-down    - Последовательно останавливает и удаляет контейнер"
 	@echo ""
 	@echo "Переменные окружения:"
-	@echo "  USER_ID             - Идентификатор пользователя для HTTP запросов (по умолчанию 1)"
+	@echo "  USER_ID             - Идентификатор пользователя для HTTP/gRPC запросов (по умолчанию 1)"
 	@echo "  SERVER_URL          - Базовый URL API (по умолчанию http://localhost:8080/api/v1)"
+	@echo "  GRPC_ADDR           - Адрес gRPC сервера (по умолчанию localhost:50051)"
 	@echo "  make help           - Показать это сообщение"
