@@ -1,0 +1,12 @@
+Todo вынести в отдельную миграцию
+-- 1. Добавить новый столбец без ограничения NOT NULL
+ALTER TABLE todos ADD COLUMN user_id bigint;
+
+-- 2. Присвоить пользователям значение (подберите ID под ваши данные)
+UPDATE todos SET user_id = 1 WHERE user_id IS NULL;
+
+-- 3. Включить ограничение NOT NULL
+ALTER TABLE todos ALTER COLUMN user_id SET NOT NULL;
+
+-- 4. (Необязательно) индекс для ускорения фильтрации
+CREATE INDEX IF NOT EXISTS idx_todos_user_id ON todos(user_id);

@@ -10,6 +10,7 @@ import (
 	todopb "github.com/akozadaev/go_todo_service/api/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -18,6 +19,7 @@ const (
 
 func main() {
 	address := flag.String("addr", defaultAddress, "gRPC server address")
+	userID := flag.Uint("user", 1, "User identifier used for multi-user mode")
 	flag.Parse()
 
 	// Подключаемся к gRPC серверу
@@ -32,7 +34,10 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	fmt.Println("=== gRPC TODO Client Demo ===\n")
+	md := metadata.Pairs("user-id", fmt.Sprintf("%d", *userID))
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	fmt.Println("=== gRPC TODO Client Demo ===")
 
 	// 1. Создание задачи
 	fmt.Println("1. Creating a new todo...")

@@ -1,0 +1,151 @@
+goroutine 201 [running]:
+runtime/pprof.writeGoroutineStacks({0x7d3af4bb0890, 0xc0001da700})
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/runtime/pprof/pprof.go:756 +0x6b
+runtime/pprof.writeGoroutine({0x7d3af4bb0890?, 0xc0001da700?}, 0xc0002a40e0?)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/runtime/pprof/pprof.go:745 +0x25
+runtime/pprof.(*Profile).WriteTo(0x223f690?, {0x7d3af4bb0890?, 0xc0001da700?}, 0xc?)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/runtime/pprof/pprof.go:371 +0x14b
+net/http/pprof.handler.ServeHTTP({0xc000408041, 0x9}, {0x7d3af4bb0800, 0xc0001da700}, 0xc00026a140)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/http/pprof/pprof.go:272 +0x52a
+net/http/pprof.Index({0x7d3af4bb0800, 0xc0001da700}, 0xc00026a140?)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/http/pprof/pprof.go:389 +0xda
+net/http.HandlerFunc.ServeHTTP(0x226f0e0?, {0x7d3af4bb0800?, 0xc0001da700?}, 0xc0000f34a8?)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/http/server.go:2322 +0x29
+net/http.(*ServeMux).ServeHTTP(0x2000000410701?, {0x7d3af4bb0800, 0xc0001da700}, 0xc00026a140)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/http/server.go:2861 +0x1c7
+main.main.WrapF.func17(0xc0001da700?)
+	/usr/local/go/pkg/mod/github.com/gin-gonic/gin@v1.11.0/utils.go:42 +0x44
+github.com/gin-gonic/gin.(*Context).Next(0xc0001da700)
+	/usr/local/go/pkg/mod/github.com/gin-gonic/gin@v1.11.0/context.go:192 +0x4e
+main.main.PProfAuth.func8(0xc0001da700)
+	/home/akozadaev/projects/akozadaev/go/ibs/go_todo_service/internal/middleware/pprof.go:15 +0x3e
+github.com/gin-gonic/gin.(*Context).Next(0xc0001da700)
+	/usr/local/go/pkg/mod/github.com/gin-gonic/gin@v1.11.0/context.go:192 +0x4e
+main.main.CORS.func6(0xc0001da700)
+	/home/akozadaev/projects/akozadaev/go/ibs/go_todo_service/internal/middleware/cors.go:36 +0x1d0
+github.com/gin-gonic/gin.(*Context).Next(0xc0001da700)
+	/usr/local/go/pkg/mod/github.com/gin-gonic/gin@v1.11.0/context.go:192 +0x4e
+main.main.Logger.func5(0xc0001da700)
+	/home/akozadaev/projects/akozadaev/go/ibs/go_todo_service/internal/middleware/logger.go:23 +0xd3
+github.com/gin-gonic/gin.(*Context).Next(0xc0001da700)
+	/usr/local/go/pkg/mod/github.com/gin-gonic/gin@v1.11.0/context.go:192 +0x4e
+main.main.RequestIDMiddleware.func4(0xc0001da700)
+	/home/akozadaev/projects/akozadaev/go/ibs/go_todo_service/internal/middleware/logger.go:72 +0xb8
+github.com/gin-gonic/gin.(*Context).Next(0xc0001da700)
+	/usr/local/go/pkg/mod/github.com/gin-gonic/gin@v1.11.0/context.go:192 +0x4e
+github.com/gin-gonic/gin.CustomRecoveryWithWriter.func1(0x0?)
+	/usr/local/go/pkg/mod/github.com/gin-gonic/gin@v1.11.0/recovery.go:92 +0x51
+github.com/gin-gonic/gin.(*Context).Next(0xc0001da700)
+	/usr/local/go/pkg/mod/github.com/gin-gonic/gin@v1.11.0/context.go:192 +0x4e
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest(0xc0004969c0, 0xc0001da700)
+	/usr/local/go/pkg/mod/github.com/gin-gonic/gin@v1.11.0/gin.go:689 +0x435
+github.com/gin-gonic/gin.(*Engine).ServeHTTP(0xc0004969c0, {0x17e30a8, 0xc000494c30}, 0xc00026a000)
+	/usr/local/go/pkg/mod/github.com/gin-gonic/gin@v1.11.0/gin.go:643 +0x1ad
+net/http.serverHandler.ServeHTTP({0xc00012e500?}, {0x17e30a8?, 0xc000494c30?}, 0x1?)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/http/server.go:3340 +0x8e
+net/http.(*conn).serve(0xc00013a090, {0x17e5378, 0xc000128180})
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/http/server.go:2109 +0x665
+created by net/http.(*Server).Serve in goroutine 10
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/http/server.go:3493 +0x485
+
+goroutine 1 [chan receive, 35 minutes]:
+main.main()
+	/home/akozadaev/projects/akozadaev/go/ibs/go_todo_service/cmd/api/main.go:211 +0x2054
+
+goroutine 7 [select]:
+go.opentelemetry.io/otel/sdk/trace.(*batchSpanProcessor).processQueue(0xc0001da500)
+	/usr/local/go/pkg/mod/go.opentelemetry.io/otel/sdk@v1.38.0/trace/batch_span_processor.go:390 +0x11a
+go.opentelemetry.io/otel/sdk/trace.NewBatchSpanProcessor.func2()
+	/usr/local/go/pkg/mod/go.opentelemetry.io/otel/sdk@v1.38.0/trace/batch_span_processor.go:145 +0x51
+created by go.opentelemetry.io/otel/sdk/trace.NewBatchSpanProcessor in goroutine 1
+	/usr/local/go/pkg/mod/go.opentelemetry.io/otel/sdk@v1.38.0/trace/batch_span_processor.go:143 +0x565
+
+goroutine 8 [chan receive, 35 minutes]:
+gopkg.in/natefinch/lumberjack%2ev2.(*Logger).millRun(...)
+	/usr/local/go/pkg/mod/gopkg.in/natefinch/lumberjack.v2@v2.2.1/lumberjack.go:379
+created by gopkg.in/natefinch/lumberjack%2ev2.(*Logger).mill.func1 in goroutine 1
+	/usr/local/go/pkg/mod/gopkg.in/natefinch/lumberjack.v2@v2.2.1/lumberjack.go:390 +0x8c
+
+goroutine 9 [select, 35 minutes]:
+database/sql.(*DB).connectionOpener(0xc00034bd40, {0x17e53b0, 0xc00039a550})
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/database/sql/sql.go:1261 +0x87
+created by database/sql.OpenDB in goroutine 1
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/database/sql/sql.go:841 +0x130
+
+goroutine 10 [IO wait]:
+internal/poll.runtime_pollWait(0x7d3af53c7200, 0x72)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/runtime/netpoll.go:351 +0x85
+internal/poll.(*pollDesc).wait(0xc00040c400?, 0x900000036?, 0x0)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/internal/poll/fd_poll_runtime.go:84 +0x27
+internal/poll.(*pollDesc).waitRead(...)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Accept(0xc00040c400)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/internal/poll/fd_unix.go:613 +0x28c
+net.(*netFD).accept(0xc00040c400)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/fd_unix.go:161 +0x29
+net.(*TCPListener).accept(0xc00012e040)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/tcpsock_posix.go:159 +0x1b
+net.(*TCPListener).Accept(0xc00012e040)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/tcpsock.go:380 +0x30
+net/http.(*Server).Serve(0xc0001da600, {0x17e2ec8, 0xc00012e040})
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/http/server.go:3463 +0x30c
+net/http.(*Server).ListenAndServe(0xc0001da600)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/http/server.go:3389 +0x72
+main.main.func2()
+	/home/akozadaev/projects/akozadaev/go/ibs/go_todo_service/cmd/api/main.go:175 +0x1f2
+created by main.main in goroutine 1
+	/home/akozadaev/projects/akozadaev/go/ibs/go_todo_service/cmd/api/main.go:169 +0x1f85
+
+goroutine 11 [IO wait, 35 minutes]:
+internal/poll.runtime_pollWait(0x7d3af53c7000, 0x72)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/runtime/netpoll.go:351 +0x85
+internal/poll.(*pollDesc).wait(0xc00040c480?, 0xc000402920?, 0x0)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/internal/poll/fd_poll_runtime.go:84 +0x27
+internal/poll.(*pollDesc).waitRead(...)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Accept(0xc00040c480)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/internal/poll/fd_unix.go:613 +0x28c
+net.(*netFD).accept(0xc00040c480)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/fd_unix.go:161 +0x29
+net.(*TCPListener).accept(0xc0004164c0)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/tcpsock_posix.go:159 +0x1b
+net.(*TCPListener).Accept(0xc0004164c0)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/tcpsock.go:380 +0x30
+google.golang.org/grpc.(*Server).Serve(0xc000482c00, {0x17e2ec8, 0xc0004164c0})
+	/usr/local/go/pkg/mod/google.golang.org/grpc@v1.76.0/server.go:915 +0x469
+main.main.func3()
+	/home/akozadaev/projects/akozadaev/go/ibs/go_todo_service/cmd/api/main.go:200 +0x54e
+created by main.main in goroutine 1
+	/home/akozadaev/projects/akozadaev/go/ibs/go_todo_service/cmd/api/main.go:184 +0x1fdf
+
+goroutine 13 [syscall, 35 minutes]:
+os/signal.signal_recv()
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/runtime/sigqueue.go:152 +0x29
+os/signal.loop()
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/os/signal/signal_unix.go:23 +0x13
+created by os/signal.Notify.func1.1 in goroutine 1
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/os/signal/signal.go:152 +0x1f
+
+goroutine 37 [chan receive, 35 minutes]:
+gopkg.in/natefinch/lumberjack%2ev2.(*Logger).millRun(...)
+	/usr/local/go/pkg/mod/gopkg.in/natefinch/lumberjack.v2@v2.2.1/lumberjack.go:379
+created by gopkg.in/natefinch/lumberjack%2ev2.(*Logger).mill.func1 in goroutine 34
+	/usr/local/go/pkg/mod/gopkg.in/natefinch/lumberjack.v2@v2.2.1/lumberjack.go:390 +0x8c
+
+goroutine 202 [IO wait]:
+internal/poll.runtime_pollWait(0x7d3af53c6c00, 0x72)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/runtime/netpoll.go:351 +0x85
+internal/poll.(*pollDesc).wait(0xc0002f0100?, 0xc00012e521?, 0x0)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/internal/poll/fd_poll_runtime.go:84 +0x27
+internal/poll.(*pollDesc).waitRead(...)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0xc0002f0100, {0xc00012e521, 0x1, 0x1})
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/internal/poll/fd_unix.go:165 +0x279
+net.(*netFD).Read(0xc0002f0100, {0xc00012e521?, 0x223e670?, 0xc000143fd0?})
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/fd_posix.go:68 +0x25
+net.(*conn).Read(0xc00002e008, {0xc00012e521?, 0x1000000010000?, 0x17e5378?})
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/net.go:196 +0x45
+net/http.(*connReader).backgroundRead(0xc00012e500)
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/http/server.go:702 +0x33
+created by net/http.(*connReader).startBackgroundRead in goroutine 201
+	/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.1.linux-amd64/src/net/http/server.go:698 +0xb6

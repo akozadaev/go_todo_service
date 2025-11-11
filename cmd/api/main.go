@@ -99,7 +99,7 @@ func main() {
 		if logger.Logger != nil {
 			logger.Logger.Fatal("Failed to migrate database", zap.Error(err))
 		}
-		log.Fatalf("Failed to migrate database: %v", err)
+		log.Fatalf("F- option go_package = \"github.com/akozadaev/go_todo_servicailed to migrate database: %v", err)
 	}
 
 	// Инициализируем слои приложения (Dependency Injection)
@@ -123,7 +123,7 @@ func main() {
 	healthHandler.RegisterRoutes(router)
 
 	// Регистрируем API endpoints
-	apiGroup := router.Group("/api/v1")
+	apiGroup := router.Group("/api/v1", middleware.RequireUser())
 	if traceClient != nil {
 		apiGroup.Use(traceClient.MiddleWareTrace())
 	}

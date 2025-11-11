@@ -7,6 +7,7 @@ import (
 // Todo представляет модель задачи
 type Todo struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
+	UserID      uint      `gorm:"not null;index" json:"user_id"`
 	Title       string    `gorm:"not null;size:255" json:"title" binding:"required,min=1,max=255"`
 	Description string    `gorm:"type:text" json:"description" binding:"max=1000"`
 	Done        bool      `gorm:"default:false" json:"done"`
@@ -41,5 +42,3 @@ func (r *TodoCreateRequest) ToTodo() *Todo {
 		Done:        r.Done,
 	}
 }
-
-

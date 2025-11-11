@@ -18,13 +18,13 @@ make dev
 
 ```bash
 cd examples/grpc_client
-go run main.go
+go run main.go -user 1
 ```
 
 Или с другим адресом сервера:
 
 ```bash
-go run main.go -addr localhost:50051
+go run main.go -addr localhost:50051 -user 1
 ```
 
 ## Возможности
@@ -48,23 +48,23 @@ go run main.go -addr localhost:50051
 go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 
 # Список сервисов
-grpcurl -plaintext localhost:50051 list
+grpcurl -plaintext -H "user-id: 1" localhost:50051 list
 
 # Список методов TodoService
-grpcurl -plaintext localhost:50051 list todo.TodoService
+grpcurl -plaintext -H "user-id: 1" localhost:50051 list todo.TodoService
 
 # Создание задачи
 grpcurl -plaintext -d '{
   "title": "Тестовая задача",
   "description": "Описание",
   "done": false
-}' localhost:50051 todo.TodoService/CreateTodo
+}' -H "user-id: 1" localhost:50051 todo.TodoService/CreateTodo
 
 # Получение всех задач
-grpcurl -plaintext localhost:50051 todo.TodoService/ListTodos
+grpcurl -plaintext -H "user-id: 1" localhost:50051 todo.TodoService/ListTodos
 
 # Получение задачи по ID
-grpcurl -plaintext -d '{"id": 1}' localhost:50051 todo.TodoService/GetTodo
+grpcurl -plaintext -H "user-id: 1" -d '{"id": 1}' localhost:50051 todo.TodoService/GetTodo
 ```
 
 ## Протокол

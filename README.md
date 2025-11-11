@@ -123,6 +123,12 @@ make build
 | PUT    | `/api/v1/todos/:id`| Обновить задачу         |
 | DELETE | `/api/v1/todos/:id`| Удалить задачу          |
 
+#### Многопользовательский режим
+
+- Каждый HTTP запрос к API должен передавать заголовок `X-User-ID` с числовым идентификатором пользователя.
+- Все операции выполняются в изоляции для конкретного пользователя — задачи разных пользователей не пересекаются.
+- gRPC клиенты должны передавать metadata `user-id` в каждом запросе (см. пример клиента в `examples/grpc_client`).
+
 ### Формат данных
 
 **Todo объект:**
@@ -152,13 +158,15 @@ make build
 
 **Получить все задачи:**
 ```bash
-curl http://localhost:8080/api/v1/todos
+curl http://localhost:8080/api/v1/todos \
+  -H "X-User-ID: 1"
 ```
 
 **Создать задачу:**
 ```bash
 curl -X POST http://localhost:8080/api/v1/todos \
   -H "Content-Type: application/json" \
+  -H "X-User-ID: 1" \
   -d '{
     "title": "Купить продукты",
     "description": "Молоко, хлеб, яйца",
@@ -170,6 +178,7 @@ curl -X POST http://localhost:8080/api/v1/todos \
 ```bash
 curl -X PUT http://localhost:8080/api/v1/todos/1 \
   -H "Content-Type: application/json" \
+  -H "X-User-ID: 1" \
   -d '{
     "title": "Купить продукты",
     "description": "Молоко, хлеб, яйца",
@@ -179,7 +188,8 @@ curl -X PUT http://localhost:8080/api/v1/todos/1 \
 
 **Удалить задачу:**
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/todos/1
+curl -X DELETE http://localhost:8080/api/v1/todos/1 \
+  -H "X-User-ID: 1"
 ```
 
 ## Тестирование

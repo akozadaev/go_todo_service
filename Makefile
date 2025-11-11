@@ -1,6 +1,9 @@
 .PHONY: run dev test-curl clean help build lint test profile profile-web profile-load swag swag-serve swag-local proto proto-gen proto-clean jaeger-up jaeger-stop jaeger-rm jaeger-down
 
-SERVER_URL = http://localhost:8080/api/v1
+SERVER_URL ?= http://localhost:8080/api/v1
+USER_ID ?= 1
+REST_USER_HEADER := -H "X-User-ID: $(USER_ID)"
+CURL_JSON_HEADER := -H "Content-Type: application/json"
 
 # Сборка бинарника
 build:
@@ -52,51 +55,55 @@ test:
 
 # Тестирование API через cURL
 test-curl:
+	@echo "Testing API with user ID: $(USER_ID)"
 	@echo "1. Получить все задачи (ожидается пустой список)..."
-	curl -s -X GET $(SERVER_URL)/todos
+	curl -s -X GET $(REST_USER_HEADER) $(SERVER_URL)/todos
 	@echo
 
 	@echo "2. Создать задачу 'Купить продукты'..."
 	curl -s -X POST $(SERVER_URL)/todos \
-		-H "Content-Type: application/json" \
+		$(CURL_JSON_HEADER) \
+		$(REST_USER_HEADER) \
 		-d '{"title": "Купить продукты", "description": "Молоко, хлеб, яйца", "done": false}'
 	@echo
 
 	@echo "3. Создать задачу 'Прогуляться с собакой'..."
 	curl -s -X POST $(SERVER_URL)/todos \
-		-H "Content-Type: application/json" \
+		$(CURL_JSON_HEADER) \
+		$(REST_USER_HEADER) \
 		-d '{"title": "Прогуляться с собакой", "description": "30 минут в парке", "done": false}'
 	@echo
 
 	@echo "4. Получить все задачи (должно быть 2)..."
-	curl -s -X GET $(SERVER_URL)/todos
+	curl -s -X GET $(REST_USER_HEADER) $(SERVER_URL)/todos
 	@echo
 
 	@echo "5. Получить задачу с ID=1..."
-	curl -s -X GET $(SERVER_URL)/todos/1
+	curl -s -X GET $(REST_USER_HEADER) $(SERVER_URL)/todos/1
 	@echo
 
 	@echo "6. Обновить задачу ID=1 (отметить как выполненную)..."
 	curl -s -X PUT $(SERVER_URL)/todos/1 \
-		-H "Content-Type: application/json" \
+		$(CURL_JSON_HEADER) \
+		$(REST_USER_HEADER) \
 		-d '{"title": "Купить продукты", "description": "Молоко, хлеб, яйца", "done": true}'
 	@echo
 
 	@echo "7. Получить обновлённую задачу ID=1..."
-	curl -s -X GET $(SERVER_URL)/todos/1
+	curl -s -X GET $(REST_USER_HEADER) $(SERVER_URL)/todos/1
 	@echo
 
 	@echo "8. Удалить задачу ID=2..."
-	curl -s -X DELETE $(SERVER_URL)/todos/2
+	curl -s -X DELETE $(REST_USER_HEADER) $(SERVER_URL)/todos/2
 	@echo " (удалено)"
 	@echo
 
 	@echo "9. Попытаться получить удалённую задачу ID=2 (должна быть ошибка)..."
-	curl -s -X GET $(SERVER_URL)/todos/2
+	curl -s -X GET $(REST_USER_HEADER) $(SERVER_URL)/todos/2
 	@echo
 
 	@echo "10. Финальный список задач (должна остаться только ID=1)..."
-	curl -s -X GET $(SERVER_URL)/todos
+	curl -s -X GET $(REST_USER_HEADER) $(SERVER_URL)/todos
 	@echo
 
 # Профилирование
@@ -233,4 +240,8 @@ help:
 	@echo "  make jaeger-stop    - Останавливает контейнер (если он запущен)"
 	@echo "  make jaeger-rm      - Удаляет контейнер (если он существует)"
 	@echo "  make jaeger-down    - Последовательно останавливает и удаляет контейнер"
+	@echo ""
+	@echo "Переменные окружения:"
+	@echo "  USER_ID             - Идентификатор пользователя для HTTP запросов (по умолчанию 1)"
+	@echo "  SERVER_URL          - Базовый URL API (по умолчанию http://localhost:8080/api/v1)"
 	@echo "  make help           - Показать это сообщение"

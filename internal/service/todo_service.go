@@ -6,6 +6,7 @@ import (
 
 	"github.com/akozadaev/go_todo_service/internal/model"
 	"github.com/akozadaev/go_todo_service/internal/repository"
+	"github.com/akozadaev/go_todo_service/internal/userctx"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -38,12 +39,21 @@ func (s *todoService) Create(ctx context.Context, req *model.TodoCreateRequest) 
 	ctx, span := s.tracer.Start(ctx, "service.CreateTodo")
 	defer span.End()
 
+	userID, err := userctx.GetUserID(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to extract user id")
+		return nil, fmt.Errorf("user context missing: %w", err)
+	}
+
 	span.SetAttributes(
+		attribute.Int64("user.id", int64(userID)),
 		attribute.String("todo.title", req.Title),
 		attribute.String("todo.description", req.Description),
 	)
 
 	todo := req.ToTodo()
+	todo.UserID = userID
 
 	if err := s.repo.Create(ctx, todo); err != nil {
 		span.RecordError(err)
@@ -61,6 +71,15 @@ func (s *todoService) GetByID(ctx context.Context, id uint) (*model.Todo, error)
 	defer span.End()
 
 	span.SetAttributes(attribute.Int64("todo.id", int64(id)))
+
+	userID, err := userctx.GetUserID(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to extract user id")
+		return nil, fmt.Errorf("user context missing: %w", err)
+	}
+
+	span.SetAttributes(attribute.Int64("user.id", int64(userID)))
 
 	todo, err := s.repo.GetByID(ctx, id)
 	if err != nil {
@@ -80,6 +99,15 @@ func (s *todoService) GetByID(ctx context.Context, id uint) (*model.Todo, error)
 func (s *todoService) GetAll(ctx context.Context) ([]model.Todo, error) {
 	ctx, span := s.tracer.Start(ctx, "service.GetAllTodos")
 	defer span.End()
+
+	userID, err := userctx.GetUserID(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to extract user id")
+		return nil, fmt.Errorf("user context missing: %w", err)
+	}
+
+	span.SetAttributes(attribute.Int64("user.id", int64(userID)))
 
 	todos, err := s.repo.GetAll(ctx)
 	if err != nil {
@@ -103,6 +131,15 @@ func (s *todoService) Update(ctx context.Context, id uint, req *model.TodoUpdate
 		attribute.String("todo.description", req.Description),
 		attribute.Bool("todo.done", req.Done),
 	)
+
+	userID, err := userctx.GetUserID(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to extract user id")
+		return nil, fmt.Errorf("user context missing: %w", err)
+	}
+
+	span.SetAttributes(attribute.Int64("user.id", int64(userID)))
 
 	// Проверяем существование
 	existing, err := s.repo.GetByID(ctx, id)
@@ -132,6 +169,15 @@ func (s *todoService) Delete(ctx context.Context, id uint) error {
 	defer span.End()
 
 	span.SetAttributes(attribute.Int64("todo.id", int64(id)))
+
+	userID, err := userctx.GetUserID(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to extract user id")
+		return fmt.Errorf("user context missing: %w", err)
+	}
+
+	span.SetAttributes(attribute.Int64("user.id", int64(userID)))
 
 	if err := s.repo.Delete(ctx, id); err != nil {
 		span.RecordError(err)

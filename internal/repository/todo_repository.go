@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/akozadaev/go_todo_service/internal/model"
+	"github.com/akozadaev/go_todo_service/internal/userctx"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -17,6 +18,7 @@ var (
 	ErrNotFound      = errors.New("todo not found")
 	ErrInvalidID     = errors.New("invalid todo ID")
 	ErrDatabaseError = errors.New("database error")
+	ErrUserNotFound  = errors.New("user id not found in context")
 )
 
 // TodoRepository определяет интерфейс для работы с TODO
@@ -45,7 +47,17 @@ func (r *todoRepository) Create(ctx context.Context, todo *model.Todo) error {
 	ctx, span := r.tracer.Start(ctx, "repository.CreateTodo")
 	defer span.End()
 
+	userID, err := userctx.GetUserID(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "User id missing from context")
+		return ErrUserNotFound
+	}
+
+	todo.UserID = userID
+
 	span.SetAttributes(
+		attribute.Int64("user.id", int64(userID)),
 		attribute.String("todo.title", todo.Title),
 		attribute.String("todo.description", todo.Description),
 		attribute.Bool("todo.done", todo.Done),
@@ -68,8 +80,17 @@ func (r *todoRepository) GetByID(ctx context.Context, id uint) (*model.Todo, err
 
 	span.SetAttributes(attribute.Int64("todo.id", int64(id)))
 
+	userID, err := userctx.GetUserID(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "User id missing from context")
+		return nil, ErrUserNotFound
+	}
+
+	span.SetAttributes(attribute.Int64("user.id", int64(userID)))
+
 	var todo model.Todo
-	err := r.db.WithContext(ctx).First(&todo, id).Error
+	err = r.db.WithContext(ctx).Where("id = ? AND user_id = ?", id, userID).First(&todo).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			span.SetStatus(codes.Error, "Todo not found")
@@ -92,8 +113,18 @@ func (r *todoRepository) GetAll(ctx context.Context) ([]model.Todo, error) {
 	ctx, span := r.tracer.Start(ctx, "repository.GetAllTodos")
 	defer span.End()
 
+	userID, err := userctx.GetUserID(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "User id missing from context")
+		return nil, ErrUserNotFound
+	}
+
 	var todos []model.Todo
-	err := r.db.WithContext(ctx).Order("created_at DESC").Find(&todos).Error
+	err = r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("created_at DESC").
+		Find(&todos).Error
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Database query error")
@@ -109,18 +140,29 @@ func (r *todoRepository) Update(ctx context.Context, todo *model.Todo) error {
 	ctx, span := r.tracer.Start(ctx, "repository.UpdateTodo")
 	defer span.End()
 
+	userID, err := userctx.GetUserID(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "User id missing from context")
+		return ErrUserNotFound
+	}
+
 	span.SetAttributes(
 		attribute.Int64("todo.id", int64(todo.ID)),
+		attribute.Int64("user.id", int64(userID)),
 		attribute.String("todo.title", todo.Title),
 		attribute.String("todo.description", todo.Description),
 		attribute.Bool("todo.done", todo.Done),
 	)
 
-	result := r.db.WithContext(ctx).Model(todo).Updates(map[string]interface{}{
-		"title":       todo.Title,
-		"description": todo.Description,
-		"done":        todo.Done,
-	})
+	result := r.db.WithContext(ctx).
+		Model(&model.Todo{}).
+		Where("id = ? AND user_id = ?", todo.ID, userID).
+		Updates(map[string]interface{}{
+			"title":       todo.Title,
+			"description": todo.Description,
+			"done":        todo.Done,
+		})
 
 	if result.Error != nil {
 		span.RecordError(result.Error)
@@ -143,7 +185,18 @@ func (r *todoRepository) Delete(ctx context.Context, id uint) error {
 
 	span.SetAttributes(attribute.Int64("todo.id", int64(id)))
 
-	result := r.db.WithContext(ctx).Delete(&model.Todo{}, id)
+	userID, err := userctx.GetUserID(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "User id missing from context")
+		return ErrUserNotFound
+	}
+
+	span.SetAttributes(attribute.Int64("user.id", int64(userID)))
+
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND user_id = ?", id, userID).
+		Delete(&model.Todo{})
 
 	if result.Error != nil {
 		span.RecordError(result.Error)

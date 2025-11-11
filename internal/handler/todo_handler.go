@@ -43,6 +43,7 @@ func (h *TodoHandler) RegisterRoutes(r *gin.RouterGroup) {
 // @Tags todos
 // @Accept json
 // @Produce json
+// @Param X-User-ID header int true "User ID"
 // @Success 200 {array} model.Todo
 // @Failure 500 {object} ErrorResponse
 // @Router /todos [get]
@@ -70,6 +71,7 @@ func (h *TodoHandler) GetAll(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path int true "Todo ID"
+// @Param X-User-ID header int true "User ID"
 // @Success 200 {object} model.Todo
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
@@ -112,6 +114,7 @@ func (h *TodoHandler) GetByID(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param todo body model.TodoCreateRequest true "Todo data"
+// @Param X-User-ID header int true "User ID"
 // @Success 201 {object} model.Todo
 // @Failure 400 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
@@ -149,6 +152,7 @@ func (h *TodoHandler) Create(c *gin.Context) {
 // @Produce json
 // @Param id path int true "Todo ID"
 // @Param todo body model.TodoUpdateRequest true "Updated todo data"
+// @Param X-User-ID header int true "User ID"
 // @Success 200 {object} model.Todo
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
@@ -198,6 +202,7 @@ func (h *TodoHandler) Update(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path int true "Todo ID"
+// @Param X-User-ID header int true "User ID"
 // @Success 204
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
