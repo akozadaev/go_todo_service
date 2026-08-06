@@ -17,12 +17,14 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Host            string
-	Port            string
-	GRPCPort        string
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	ShutdownTimeout time.Duration
+	Host                 string
+	Port                 string
+	GRPCPort             string
+	ReadTimeout          time.Duration
+	WriteTimeout         time.Duration
+	ShutdownTimeout      time.Duration
+	GinMode              string
+	EnableGRPCReflection bool
 }
 
 type DatabaseConfig struct {
@@ -50,10 +52,13 @@ type LoggerConfig struct {
 }
 
 type TraceConfig struct {
-	IsTraceEnabled    bool
-	Url               string
-	ServiceName       string
-	IsHttpBodyEnabled bool
+	Enabled        bool
+	Endpoint       string
+	Insecure       bool
+	ServiceName    string
+	ServiceVersion string
+	Environment    string
+	SampleRatio    float64
 }
 
 // Load загружает конфигурацию из переменных окружения
@@ -63,12 +68,14 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		Server: ServerConfig{
-			Host:            getEnv("SERVER_HOST", "localhost"),
-			Port:            getEnv("SERVER_PORT", "8080"),
-			GRPCPort:        getEnv("SERVER_GRPC_PORT", "50051"),
-			ReadTimeout:     getDurationEnv("SERVER_READ_TIMEOUT", 10*time.Second),
-			WriteTimeout:    getDurationEnv("SERVER_WRITE_TIMEOUT", 10*time.Second),
-			ShutdownTimeout: getDurationEnv("SERVER_SHUTDOWN_TIMEOUT", 5*time.Second),
+			Host:                 getEnv("SERVER_HOST", "localhost"),
+			Port:                 getEnv("SERVER_PORT", "8080"),
+			GRPCPort:             getEnv("SERVER_GRPC_PORT", "50051"),
+			ReadTimeout:          getDurationEnv("SERVER_READ_TIMEOUT", 10*time.Second),
+			WriteTimeout:         getDurationEnv("SERVER_WRITE_TIMEOUT", 10*time.Second),
+			ShutdownTimeout:      getDurationEnv("SERVER_SHUTDOWN_TIMEOUT", 5*time.Second),
+			GinMode:              getEnv("GIN_MODE", "debug"),
+			EnableGRPCReflection: getBoolEnv("GRPC_REFLECTION_ENABLED", true),
 		},
 		Database: DatabaseConfig{
 			Host:         getEnv("DB_HOST", "localhost"),
@@ -93,10 +100,13 @@ func Load() (*Config, error) {
 			EnableStdout: getBoolEnv("LOG_ENABLE_STDOUT", false),
 		},
 		Trace: TraceConfig{
-			IsTraceEnabled:    getBoolEnv("TRACE_ENABLED", true),
-			Url:               getEnv("TRACE_URL", "localhost:14268/v1/traces"),
-			ServiceName:       getEnv("TRACE_SERVICE_NAME", "go-todo-service"),
-			IsHttpBodyEnabled: getBoolEnv("TRACE_HTTP_BODY_ENABLED", false),
+			Enabled:        getBoolEnv("TRACE_ENABLED", true),
+			Endpoint:       getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318"),
+			Insecure:       getBoolEnv("OTEL_EXPORTER_OTLP_INSECURE", true),
+			ServiceName:    getEnv("OTEL_SERVICE_NAME", "go-todo-service"),
+			ServiceVersion: getEnv("SERVICE_VERSION", "1.0.0"),
+			Environment:    getEnv("DEPLOYMENT_ENVIRONMENT", "development"),
+			SampleRatio:    getFloatEnv("TRACE_SAMPLE_RATIO", 1),
 		},
 	}
 
@@ -110,6 +120,9 @@ func Load() (*Config, error) {
 func (c *Config) validate() error {
 	if c.Database.Password == "" {
 		return fmt.Errorf("DB_PASSWORD is required")
+	}
+	if c.Trace.SampleRatio < 0 || c.Trace.SampleRatio > 1 {
+		return fmt.Errorf("TRACE_SAMPLE_RATIO must be between 0 and 1")
 	}
 	return nil
 }
@@ -161,6 +174,15 @@ func getBoolEnv(key string, defaultValue bool) bool {
 	if value := os.Getenv(key); value != "" {
 		if boolVal, err := strconv.ParseBool(value); err == nil {
 			return boolVal
+		}
+	}
+	return defaultValue
+}
+
+func getFloatEnv(key string, defaultValue float64) float64 {
+	if value := os.Getenv(key); value != "" {
+		if floatVal, err := strconv.ParseFloat(value, 64); err == nil {
+			return floatVal
 		}
 	}
 	return defaultValue

@@ -39,7 +39,7 @@ type todoRepository struct {
 func NewTodoRepository(db *gorm.DB) TodoRepository {
 	return &todoRepository{
 		db:     db,
-		tracer: otel.Tracer("go-todo-service"),
+		tracer: otel.Tracer("github.com/akozadaev/go_todo_service/internal/repository"),
 	}
 }
 
@@ -58,8 +58,6 @@ func (r *todoRepository) Create(ctx context.Context, todo *model.Todo) error {
 
 	span.SetAttributes(
 		attribute.Int64("user.id", int64(userID)),
-		attribute.String("todo.title", todo.Title),
-		attribute.String("todo.description", todo.Description),
 		attribute.Bool("todo.done", todo.Done),
 	)
 
@@ -102,7 +100,6 @@ func (r *todoRepository) GetByID(ctx context.Context, id uint) (*model.Todo, err
 	}
 
 	span.SetAttributes(
-		attribute.String("todo.title", todo.Title),
 		attribute.Bool("todo.done", todo.Done),
 	)
 	span.SetStatus(codes.Ok, "Todo retrieved from database")
@@ -150,8 +147,6 @@ func (r *todoRepository) Update(ctx context.Context, todo *model.Todo) error {
 	span.SetAttributes(
 		attribute.Int64("todo.id", int64(todo.ID)),
 		attribute.Int64("user.id", int64(userID)),
-		attribute.String("todo.title", todo.Title),
-		attribute.String("todo.description", todo.Description),
 		attribute.Bool("todo.done", todo.Done),
 	)
 

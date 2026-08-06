@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"io"
 	"strconv"
 
 	todopb "github.com/akozadaev/go_todo_service/api/proto"
@@ -198,9 +199,12 @@ func (h *TodoGRPCHandler) BulkCreateTodos(stream todopb.TodoService_BulkCreateTo
 
 	for {
 		req, err := stream.Recv()
-		if err != nil {
-			// Stream завершен
+		if errors.Is(err, io.EOF) {
 			break
+		}
+		if err != nil {
+			h.logger.Error("gRPC: Ошибка чтения клиентского потока", zap.Error(err))
+			return status.Error(codes.Unavailable, "failed to receive todo")
 		}
 
 		createReq := &model.TodoCreateRequest{

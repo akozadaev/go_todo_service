@@ -46,7 +46,7 @@ func (h *HealthHandler) Ready(c *gin.Context) {
 		return
 	}
 
-	if err := sqlDB.Ping(); err != nil {
+	if err := sqlDB.PingContext(c.Request.Context()); err != nil {
 		c.JSON(http.StatusServiceUnavailable, HealthResponse{
 			Status: "not ready",
 		})
@@ -57,5 +57,3 @@ func (h *HealthHandler) Ready(c *gin.Context) {
 		Status: "ready",
 	})
 }
-
-

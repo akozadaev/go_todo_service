@@ -22,7 +22,6 @@ func NewPostgresDB(cfg *config.DatabaseConfig) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
-
 	// Получаем доступ к sql.DB для настройки пула соединений
 	sqlDB, err := db.DB()
 	if err != nil {

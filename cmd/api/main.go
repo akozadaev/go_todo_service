@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -22,6 +23,8 @@ import (
 	"github.com/akozadaev/go_todo_service/pkg/trace"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -62,7 +65,7 @@ func main() {
 	defer logger.SyncSpecialized()
 
 	// Инициализируем трассировку
-	traceClient, err := trace.NewTraceClient()
+	traceClient, err := trace.NewTraceClient(context.Background(), cfg.Trace)
 	if err != nil {
 		if logger.Logger != nil {
 			logger.Logger.Fatal("Failed to initialize trace client", zap.Error(err))
@@ -99,7 +102,7 @@ func main() {
 		if logger.Logger != nil {
 			logger.Logger.Fatal("Failed to migrate database", zap.Error(err))
 		}
-		log.Fatalf("F- option go_package = \"github.com/akozadaev/go_todo_servicailed to migrate database: %v", err)
+		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
 	// Инициализируем слои приложения (Dependency Injection)
@@ -110,23 +113,25 @@ func main() {
 	healthHandler := handler.NewHealthHandler(db)
 
 	// Настраиваем Gin
-	gin.SetMode(gin.DebugMode) // Используем gin.DebugMode для разработки,  ReleaseMode для релиза
+	gin.SetMode(cfg.Server.GinMode)
 	router := gin.New()
 
 	// Добавляем middleware
 	router.Use(gin.Recovery())                   // Встроенный recovery middleware
 	router.Use(middleware.RequestIDMiddleware()) // Добавляем request ID
-	router.Use(middleware.Logger())              // Кастомный logger
-	router.Use(middleware.CORS())                // CORS support
+	if cfg.Trace.Enabled {
+		router.Use(otelgin.Middleware(cfg.Trace.ServiceName, otelgin.WithFilter(func(r *http.Request) bool {
+			return r.URL.Path != "/health" && r.URL.Path != "/ready"
+		})))
+	}
+	router.Use(middleware.Logger()) // Кастомный logger
+	router.Use(middleware.CORS())   // CORS support
 
 	// Регистрируем health endpoints
 	healthHandler.RegisterRoutes(router)
 
 	// Регистрируем API endpoints
 	apiGroup := router.Group("/api/v1", middleware.RequireUser())
-	if traceClient != nil {
-		apiGroup.Use(traceClient.MiddleWareTrace())
-	}
 	todoHandler.RegisterRoutes(apiGroup)
 
 	// OpenAPI документация доступна через файловый сервер
@@ -159,11 +164,19 @@ func main() {
 	}
 
 	// Создаем gRPC сервер
-	grpcServer := grpc.NewServer()
-	reflection.Register(grpcServer) // Включаем reflection для grpcurl и других инструментов
+	grpcServer := grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler()))
+	if cfg.Server.EnableGRPCReflection {
+		reflection.Register(grpcServer)
+	}
 
 	// Регистрируем gRPC сервис
 	todopb.RegisterTodoServiceServer(grpcServer, todoGRPCHandler)
+	serverErrors := make(chan error, 2)
+	grpcAddr := cfg.Server.GetGRPCAddress()
+	lis, err := net.Listen("tcp", grpcAddr)
+	if err != nil {
+		logger.Logger.Fatal("Failed to listen on gRPC address", zap.String("address", grpcAddr), zap.Error(err))
+	}
 
 	// Запускаем HTTP сервер в отдельной горутине
 	go func() {
@@ -172,43 +185,32 @@ func main() {
 		} else {
 			log.Printf("Starting HTTP server on %s", server.Addr)
 		}
-		if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			if logger.Logger != nil {
-				logger.Logger.Fatal("Failed to start HTTP server", zap.Error(err))
-			}
-			log.Fatalf("Failed to start HTTP server: %v", err)
+		if serveErr := server.ListenAndServe(); serveErr != nil && serveErr != http.ErrServerClosed {
+			serverErrors <- fmt.Errorf("HTTP server: %w", serveErr)
 		}
 	}()
 
 	// Запускаем gRPC сервер в отдельной горутине
 	go func() {
-		grpcAddr := cfg.Server.GetGRPCAddress()
-		lis, err := net.Listen("tcp", grpcAddr)
-		if err != nil {
-			if logger.Logger != nil {
-				logger.Logger.Fatal("Failed to listen on gRPC address", zap.String("address", grpcAddr), zap.Error(err))
-			}
-			log.Fatalf("Failed to listen on gRPC address %s: %v", grpcAddr, err)
-		}
-
 		if logger.Logger != nil {
 			logger.Logger.Info("Starting gRPC server", zap.String("address", grpcAddr))
 		} else {
 			log.Printf("Starting gRPC server on %s", grpcAddr)
 		}
 
-		if err = grpcServer.Serve(lis); err != nil {
-			if logger.Logger != nil {
-				logger.Logger.Fatal("Failed to serve gRPC", zap.Error(err))
-			}
-			log.Fatalf("Failed to serve gRPC: %v", err)
+		if serveErr := grpcServer.Serve(lis); serveErr != nil {
+			serverErrors <- fmt.Errorf("gRPC server: %w", serveErr)
 		}
 	}()
 
 	// Graceful Shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	select {
+	case <-quit:
+	case serveErr := <-serverErrors:
+		logger.Logger.Error("Server stopped unexpectedly", zap.Error(serveErr))
+	}
 
 	if logger.Logger != nil {
 		logger.Logger.Info("Shutting down server...")
@@ -236,8 +238,17 @@ func main() {
 		log.Println("Stopping gRPC server...")
 	}
 
-	// GracefulStop ждет завершения всех активных запросов
-	grpcServer.GracefulStop()
+	// GracefulStop не поддерживает контекст, поэтому ограничиваем ожидание общим таймаутом.
+	grpcStopped := make(chan struct{})
+	go func() {
+		grpcServer.GracefulStop()
+		close(grpcStopped)
+	}()
+	select {
+	case <-grpcStopped:
+	case <-ctx.Done():
+		grpcServer.Stop()
+	}
 
 	if logger.Logger != nil {
 		logger.Logger.Info("gRPC server stopped")

@@ -2,6 +2,20 @@
 
 RESTful микросервис для управления списком задач (TODO), построенный с использованием лучших практик Go.
 
+## Быстрый запуск стека трассировки
+
+```bash
+docker compose up --build -d
+curl -H 'X-User-ID: 1' http://localhost:8080/api/v1/todos
+```
+
+- HTTP API: <http://localhost:8080>
+- gRPC: `localhost:50051`
+- Jaeger UI: <http://localhost:16686>
+- лекция: [../lecture.md](../lecture.md)
+
+Остановка: `docker compose down`. Для удаления данных PostgreSQL добавьте `-v`.
+
 ## Архитектура
 
 Структура папок в соответствии с [рекомендациями](https://github.com/golang-standards/project-layout/blob/master/README_ru.md)
@@ -25,7 +39,7 @@ gRPC Request -> gRPC Handler -> Service -> Repository -> Database
 
 ## Технологии
 
-- **Язык**: Go 1.25
+- **Язык**: Go 1.26
 - **Веб-фреймворк**: [Gin](https://github.com/gin-gonic/gin)
 - **gRPC**: [gRPC](https://grpc.io/) для микросервисной коммуникации
 - **ORM**: [GORM](https://gorm.io/)
@@ -256,10 +270,13 @@ make init              # Создать .env из .env.example
 | `LOG_LOCAL_TIME`        | Использовать локальное время| true         |
 | `LOG_ROTATE_DAILY`      | Ротация по дням             | false        |
 | `LOG_ENABLE_STDOUT`     | Дублировать в stdout        | false        |
-| `TRACE_ENABLED`         | Включить трассировку        | false        |
-| `TRACE_URL`             | URL Jaeger коллектора       | http://localhost:14268/api/traces |
-| `TRACE_SERVICE_NAME`    | Имя сервиса для трассировки | go-todo-service |
-| `TRACE_HTTP_BODY_ENABLED` | Логировать HTTP body       | false        |
+| `TRACE_ENABLED` | Включить экспорт трассировок | true |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP endpoint Collector | http://localhost:4318 |
+| `OTEL_EXPORTER_OTLP_INSECURE` | Использовать соединение без TLS | true |
+| `OTEL_SERVICE_NAME` | Имя сервиса в Jaeger | go-todo-service |
+| `SERVICE_VERSION` | Версия сервиса | 1.0.0 |
+| `DEPLOYMENT_ENVIRONMENT` | Окружение | development |
+| `TRACE_SAMPLE_RATIO` | Доля записываемых корневых traces, от 0 до 1 | 1 |
 
 ## Логгирование
 
@@ -359,16 +376,16 @@ make run
 
 - **Иерархическая трассировка**: Корневые span'ы для HTTP запросов с дочерними span'ами в service и repository слоях
 - **Автоматическая интеграция**: Trace_id и span_id автоматически добавляются в структурированные логи
-- **Распределенная трассировка**: Поддержка передачи контекста между сервисами через HTTP заголовки
-- **Экспорт в Jaeger**: Трассировки отправляются в Jaeger для визуализации и анализа
+- **Распределённая трассировка**: W3C-контекст извлекается из HTTP-заголовков и gRPC metadata
+- **OTLP pipeline**: приложение отправляет spans в OpenTelemetry Collector, а Collector — в Jaeger
+- **HTTP и gRPC**: используются официальные instrumentation `otelgin` и `otelgrpc`
 
 ### Архитектура трассировки
 
 ```
-HTTP Request (GET /api/v1/todos)
-├── middleware.MiddleWareTrace() [корневой span]
-    ├── service.GetAllTodos() [дочерний span]
-        └── repository.GetAllTodos() [дочерний span]
+GET /api/v1/todos [otelgin, серверный span]
+└── service.GetAllTodos [ручной span]
+    └── repository.GetAllTodos [ручной span]
 ```
 
 ### Настройка
@@ -378,19 +395,23 @@ HTTP Request (GET /api/v1/todos)
 ```env
 # Конфигурация трассировки
 TRACE_ENABLED=true
-TRACE_URL=http://localhost:14268/api/traces
-TRACE_SERVICE_NAME=go-todo-service
-TRACE_HTTP_BODY_ENABLED=false
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+OTEL_EXPORTER_OTLP_INSECURE=true
+OTEL_SERVICE_NAME=go-todo-service
+SERVICE_VERSION=1.0.0
+DEPLOYMENT_ENVIRONMENT=development
+TRACE_SAMPLE_RATIO=1
 ```
 
-### Запуск Jaeger
+### Запуск полного стека
 
 ```bash
-# Запуск Jaeger локально
-./scripts/jaeger_start.sh
+# Приложение, PostgreSQL, Collector и Jaeger
+docker compose up --build -d
 
-# Проверка работы
-curl http://localhost:16686/api/services
+# Проверка контейнеров и API
+docker compose ps
+curl -H 'X-User-ID: 1' http://localhost:8080/api/v1/todos
 ```
 
 ### Примеры trace_id в логах
@@ -414,7 +435,7 @@ curl http://localhost:16686/api/services
 - **Поиск трассировок**: `grep "trace_id" logs/app.log`
 - **Подсчет трассировок**: `grep "trace_id" logs/app.log | wc -l`
 
-Подробная документация по трассировке доступна в [TRACING_DOCUMENTATION.md](./TRACING_DOCUMENTATION.md).
+Подробное объяснение и практическая последовательность приведены в [лекции](../lecture.md).
 
 ### Code Style
 
@@ -518,4 +539,3 @@ Proto файлы находятся в `api/proto/todo.proto`. После изм
 - **Стриминг**: Поддержка однонаправленных и двунаправленных потоков
 
 Подробнее см. [examples/grpc_client/README.md](./examples/grpc_client/README.md)
-

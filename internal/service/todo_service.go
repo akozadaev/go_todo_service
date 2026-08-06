@@ -31,7 +31,7 @@ type todoService struct {
 func NewTodoService(repo repository.TodoRepository) TodoService {
 	return &todoService{
 		repo:   repo,
-		tracer: otel.Tracer("go-todo-service"),
+		tracer: otel.Tracer("github.com/akozadaev/go_todo_service/internal/service"),
 	}
 }
 
@@ -48,8 +48,6 @@ func (s *todoService) Create(ctx context.Context, req *model.TodoCreateRequest) 
 
 	span.SetAttributes(
 		attribute.Int64("user.id", int64(userID)),
-		attribute.String("todo.title", req.Title),
-		attribute.String("todo.description", req.Description),
 	)
 
 	todo := req.ToTodo()
@@ -89,7 +87,6 @@ func (s *todoService) GetByID(ctx context.Context, id uint) (*model.Todo, error)
 	}
 
 	span.SetAttributes(
-		attribute.String("todo.title", todo.Title),
 		attribute.Bool("todo.done", todo.Done),
 	)
 	span.SetStatus(codes.Ok, "Todo retrieved successfully")
@@ -127,8 +124,6 @@ func (s *todoService) Update(ctx context.Context, id uint, req *model.TodoUpdate
 
 	span.SetAttributes(
 		attribute.Int64("todo.id", int64(id)),
-		attribute.String("todo.title", req.Title),
-		attribute.String("todo.description", req.Description),
 		attribute.Bool("todo.done", req.Done),
 	)
 

@@ -45,7 +45,7 @@ go run main.go -addr localhost:50051 -user 1
 
 ```bash
 # Установка grpcurl
-go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
+```
 
 # Список сервисов
 grpcurl -plaintext -H "user-id: 1" localhost:50051 list
